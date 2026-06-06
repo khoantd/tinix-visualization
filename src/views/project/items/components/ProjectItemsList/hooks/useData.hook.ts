@@ -1,11 +1,10 @@
 import { useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
-import { getLocalStorage, setLocalStorage, goDialog, setSessionStorage } from '@/utils'
+import { goDialog, setSessionStorage } from '@/utils'
 import { StorageEnum } from '@/enums/storageEnum'
 import { DialogEnum } from '@/enums/pluginEnum'
 import { ChartList, Chartype } from '../../../index.d'
-import { getProjectsApi, deleteProjectApi, getProjectApi, saveProjectApi } from '@/api/storage.api'
-import { downloadTextFile } from '@/utils/file'
+import { getProjectsApi, deleteProjectApi, getProjectApi } from '@/api/storage.api'
 import { fetchPathByName, routerTurnByPath } from '@/utils'
 import { PreviewEnum } from '@/enums/pageEnum'
 
@@ -13,6 +12,9 @@ import { PreviewEnum } from '@/enums/pageEnum'
 export const useDataListInit = () => {
   const list = ref<ChartList>([])
   const router = useRouter()
+  const embedPanelShow = ref(false)
+  const embedDashboardId = ref('')
+  const embedProjectData = ref<Record<string, unknown> | null>(null)
 
   const getItem = async () => {
     // Thử lấy từ Server SQLite trước
@@ -49,39 +51,20 @@ export const useDataListInit = () => {
     })
   }
 
-  // Phát hành (Publish)
-  const publishHandle = (cardData: Chartype) => {
-    const previewUrl = `${window.location.origin}/#/chart/preview/${cardData.id}`
-    const embedCode = `<iframe src="${previewUrl}" width="100%" height="600px" frameborder="0"></iframe>`
+  // Phát hành (Publish & Embed)
+  const publishHandle = async (cardData: Chartype) => {
+    const fullProject = await getProjectApi(String(cardData.id))
+    if (!fullProject) {
+      window['$message'].error('Không thể tải dự án.')
+      return
+    }
+    embedDashboardId.value = String(cardData.id)
+    embedProjectData.value = fullProject
+    embedPanelShow.value = true
+  }
 
-    goDialog({
-      type: DialogEnum.SUCCESS,
-      title: 'Phát hành Dự án & Nhúng website',
-      message: `Hệ thống sẽ trích xuất toàn bộ cấu hình JSON. Ngoài ra, bạn có thể sử dụng đoạn mã sau để nhúng vào website khác:\n\n${embedCode}`,
-      positiveText: 'Tải JSON & Sao chép mã nhúng',
-      negativeText: 'Hủy bớt',
-      onPositiveCallback: async () => {
-        const fullProject = await getProjectApi(String(cardData.id))
-        if (fullProject) {
-          // Cập nhật trạng thái phát hành
-          fullProject.isPublished = true
-          await saveProjectApi(fullProject)
-          
-          // Tải file JSON
-          const jsonContent = JSON.stringify(fullProject, null, 2)
-          downloadTextFile(jsonContent, `tinix-dashboard-${cardData.title}-${new Date().getTime()}`, 'json')
-          
-          // Sao chép mã nhúng
-          try {
-            await navigator.clipboard.writeText(embedCode)
-            window['$message'].success('Phát hành thành công! Tệp JSON đã được tải về và Mã nhúng Iframe đã được sao chép vào bộ nhớ tạm.')
-          } catch (e) {
-            window['$message'].success('Phát hành thành công!')
-          }
-          getItem() // Tải lại danh sách
-        }
-      }
-    })
+  const handleEmbedSaved = () => {
+    getItem()
   }
 
   // xóa bỏ
@@ -112,6 +95,10 @@ export const useDataListInit = () => {
     list,
     deleteHandle,
     publishHandle,
-    previewHandle
+    previewHandle,
+    embedPanelShow,
+    embedDashboardId,
+    embedProjectData,
+    handleEmbedSaved,
   }
 }

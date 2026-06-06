@@ -18,5 +18,7 @@ export enum StorageEnum {
   // Dữ liệu mẫu của riêng người dùng (Save as Template)
   GO_USER_TEMPLATE_STORAGE = 'GO_USER_TEMPLATE_STORAGE',
   // Phương tiện hình ảnh được người dùng lưu trữ
-  GO_USER_MEDIA_PHOTOS = 'GO_USER_MEDIA_PHOTOS'
+  GO_USER_MEDIA_PHOTOS = 'GO_USER_MEDIA_PHOTOS',
+  // Embed JWT for authenticated iframe sessions
+  GO_EMBED_TOKEN = 'GO_EMBED_TOKEN',
 }

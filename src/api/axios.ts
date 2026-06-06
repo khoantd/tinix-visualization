@@ -12,6 +12,11 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const embedToken = typeof window !== 'undefined' ? window.__TINIX_EMBED_TOKEN__ : null
+    if (embedToken) {
+      config.headers = config.headers || {}
+      config.headers.Authorization = `Bearer ${embedToken}`
+    }
     return config
   },
   (error: AxiosError) => {

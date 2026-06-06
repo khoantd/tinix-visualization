@@ -6,6 +6,7 @@ import project from './project'
 import edit from './edit'
 import packages from './packages'
 import views_components from './views_components'
+import embed from './embed'
 
 const global = {
   ...global_extra,
@@ -45,5 +46,6 @@ export default {
   ...project,
   ...edit,
   packages,
-  views_components
+  views_components,
+  embed,
 }

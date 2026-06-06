@@ -33,12 +33,48 @@ const {
   MAX_LIMIT,
 } = require('./connector.service');
 
+const {
+  TOKEN_TTL_SECONDS,
+  verifyEmbedToken,
+  createEmbedApp,
+  listEmbedApps,
+  rotateEmbedAppKey,
+  updateEmbedAppOrigins,
+  mintEmbedToken,
+  getPublishedDashboard,
+  publishDashboard,
+  unpublishDashboard,
+  assertEmbedDatasetAccess,
+  assertEmbedConnectorAccess,
+  parseBearerToken,
+  getEmbedAppByApiKey,
+} = require('./embed.service');
+
 const app = express();
 const port = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+function tryResolveEmbedContext(req) {
+  const token = parseBearerToken(req.headers.authorization);
+  if (!token) return null;
+  try {
+    return verifyEmbedToken(token);
+  } catch {
+    return null;
+  }
+}
+
+function requireEmbedContext(req, res) {
+  const ctx = tryResolveEmbedContext(req);
+  if (!ctx) {
+    res.status(401).json({ error: 'Valid embed token required' });
+    return null;
+  }
+  return ctx;
+}
 
 function getAiSetting() {
   try {
@@ -99,6 +135,126 @@ app.post('/api/auto-bi/suggest', async (req, res) => {
   } catch (err) {
     const status = err.message.includes('Chưa cấu hình') ? 400 : 500;
     res.status(status).json({ error: err.message });
+  }
+});
+
+// --- API EMBED ---
+
+app.get('/api/embed/config', (req, res) => {
+  res.json({ tokenTtlSeconds: TOKEN_TTL_SECONDS });
+});
+
+app.get('/api/embed/apps', (req, res) => {
+  try {
+    res.json(listEmbedApps());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/embed/apps', (req, res) => {
+  try {
+    const { name, allowedOrigins } = req.body;
+    const app = createEmbedApp({ name, allowedOrigins });
+    res.json(app);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post('/api/embed/apps/:id/rotate', (req, res) => {
+  try {
+    const result = rotateEmbedAppKey(req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
+app.put('/api/embed/apps/:id/origins', (req, res) => {
+  try {
+    const result = updateEmbedAppOrigins(req.params.id, req.body.allowedOrigins);
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
+app.post('/api/embed/token', (req, res) => {
+  try {
+    const apiKey = req.headers['x-embed-api-key'];
+    if (!apiKey) return res.status(401).json({ error: 'X-Embed-Api-Key header is required' });
+
+    const app = getEmbedAppByApiKey(apiKey);
+    if (!app) return res.status(401).json({ error: 'Invalid embed API key' });
+
+    const { dashboardId, user } = req.body;
+    if (!dashboardId) return res.status(400).json({ error: 'dashboardId is required' });
+
+    const origin = req.headers.origin || req.headers.referer || null;
+    const result = mintEmbedToken({
+      app,
+      dashboardId,
+      user: user || {},
+      origin,
+    });
+    res.json(result);
+  } catch (error) {
+    const status = error.message.includes('not published') ? 403 : 400;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+app.get('/api/embed/dashboard/:id', (req, res) => {
+  try {
+    const ctx = requireEmbedContext(req, res);
+    if (!ctx) return;
+
+    const dashboard = getPublishedDashboard(req.params.id, ctx);
+    res.json(dashboard);
+  } catch (error) {
+    const status = error.message.includes('not published') ? 403 : 404;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+app.post('/api/embed/publish', (req, res) => {
+  try {
+    const { dashboardId, embedSettings } = req.body;
+    if (!dashboardId) return res.status(400).json({ error: 'dashboardId is required' });
+    const result = publishDashboard(dashboardId, embedSettings || {});
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
+app.post('/api/embed/revoke', (req, res) => {
+  try {
+    const { dashboardId } = req.body;
+    if (!dashboardId) return res.status(400).json({ error: 'dashboardId is required' });
+    const result = unpublishDashboard(dashboardId);
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
+// Preview token for TiniX UI embed panel (local-first; not for production parent apps)
+app.post('/api/embed/preview-token', (req, res) => {
+  try {
+    const { dashboardId, user } = req.body;
+    if (!dashboardId) return res.status(400).json({ error: 'dashboardId is required' });
+    const result = mintEmbedToken({
+      app: { id: 'tinix-preview', allowed_origins: [] },
+      dashboardId,
+      user: user || { id: 'preview', roles: ['viewer'] },
+      origin: null,
+    });
+    res.json(result);
+  } catch (error) {
+    const status = error.message.includes('not published') ? 403 : 400;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -383,6 +539,15 @@ app.get('/api/datasets/:id', async (req, res) => {
   const datasetId = req.params.id;
   const { includeMeta } = req.query;
   try {
+    const embedCtx = tryResolveEmbedContext(req);
+    if (embedCtx) {
+      try {
+        assertEmbedDatasetAccess(embedCtx, datasetId);
+      } catch (accessErr) {
+        return res.status(403).json({ error: accessErr.message });
+      }
+    }
+
     console.log(`[DATASET_FETCH] Requesting ID: ${datasetId} (Meta: ${includeMeta})`);
     const dataset = db.prepare('SELECT * FROM datasets WHERE id = ?').get(datasetId);
     if (!dataset) {
@@ -753,6 +918,15 @@ app.get('/api/connectors/:id/columns', async (req, res) => {
 
 app.post('/api/connectors/:id/query', async (req, res) => {
   try {
+    const embedCtx = tryResolveEmbedContext(req);
+    if (embedCtx) {
+      try {
+        assertEmbedConnectorAccess(embedCtx, req.params.id);
+      } catch (accessErr) {
+        return res.status(403).json({ error: accessErr.message });
+      }
+    }
+
     const row = getConnectorRow(req.params.id);
     if (!row) return res.status(404).json({ error: 'Connector not found' });
     const { sql, query, variables, rootField, limit } = req.body;

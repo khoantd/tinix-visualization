@@ -12,6 +12,13 @@ export enum PreviewEnum {
   CHART_PREVIEW_NAME = 'ChartPreview',
 }
 
+export enum EmbedEnum {
+  CHART_EMBED = '/embed/:id(.*)*',
+  CHART_EMBED_NAME = 'ChartEmbed',
+  CHART_EMBED_ERROR = '/embed/error',
+  CHART_EMBED_ERROR_NAME = 'ChartEmbedError',
+}
+
 export enum EditEnum {
   //  biểu đồJSONbiên tập
   CHART_EDIT = '/chart/edit/:id(.*)*',

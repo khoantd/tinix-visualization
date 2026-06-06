@@ -68,6 +68,14 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS embed_apps (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    api_key_hash TEXT NOT NULL UNIQUE,
+    allowed_origins TEXT DEFAULT '[]',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Migration: Thêm cột bi_config nếu chưa có

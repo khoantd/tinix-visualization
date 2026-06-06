@@ -7,10 +7,17 @@
       <span>{{ item.title }}</span>
     </n-button>
   </n-space>
+  <EmbedPanel
+    v-model:show="embedPanelShow"
+    :dashboard-id="dashboardIdStr"
+    :project-data="embedProjectData"
+    @saved="handleEmbedSaved"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import EmbedPanel from '@/components/EmbedPanel/index.vue'
 import { renderIcon, goDialog, fetchPathByName, routerTurnByPath, setSessionStorage, getSessionStorage } from '@/utils'
 import { PreviewEnum } from '@/enums/pageEnum'
 import { StorageEnum } from '@/enums/storageEnum'
@@ -19,16 +26,23 @@ import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore
 import { syncData } from '../../ContentEdit/components/EditTools/hooks/useSyncUpdate.hook'
 import { icon } from '@/plugins'
 import { cloneDeep } from 'lodash'
+import { DialogEnum } from '@/enums/pluginEnum'
+import { getCanvasThumbnail } from '@/utils'
 
 const { BrowsersOutlineIcon, SendIcon, AnalyticsIcon } = icon.ionicons5
 const chartEditStore = useChartEditStore()
 
 const routerParamsInfo = useRoute()
+const embedPanelShow = ref(false)
 
-import { downloadTextFile } from '@/utils/file'
+const dashboardIdStr = computed(() => {
+  const { id } = routerParamsInfo.params
+  return id ? (typeof id === 'string' ? id : id[0]) : ''
+})
 
-import { DialogEnum } from '@/enums/pluginEnum'
-import { getCanvasThumbnail } from '@/utils'
+const embedProjectData = computed(() => chartEditStore.getStorageInfo() as Record<string, unknown>)
+
+const handleEmbedSaved = () => {}
 import { useUserTemplateData } from '@/views/project/mtTemplate/hooks/useUserTemplateData.hook'
 import { saveSystemTemplateApi, saveProjectApi } from '@/api/storage.api'
 
@@ -64,45 +78,18 @@ const previewHandle = () => {
   routerTurnByPath(path, [previewId], undefined, true)
 }
 
-// phát hành (Publish)
-const sendHandle = () => {
-  const { id } = routerParamsInfo.params
-  const idStr = typeof id === 'string' ? id : id[0]
-  const previewUrl = `${window.location.origin}/#/chart/preview/${idStr}`
-  const embedCode = `<iframe src="${previewUrl}" width="100%" height="600px" frameborder="0"></iframe>`
+// phát hành (Publish & Embed)
+const sendHandle = async () => {
+  const storageInfo = chartEditStore.getStorageInfo()
+  const idStr = dashboardIdStr.value
+  if (!idStr) return
 
-  goDialog({
-    type: DialogEnum.SUCCESS,
-    title: 'Phát hành Dự án & Nhúng website',
-    message: `Hệ thống sẽ lưu trữ Dashboard hiện tại và cung cấp link chia sẻ công khai. Bạn có thể sử dụng mã sau để nhúng vào website khác:\n\n${embedCode}`,
-    positiveText: 'Lưu & Sao chép mã nhúng',
-    negativeText: 'Hủy bớt',
-    onPositiveCallback: async () => {
-      const storageInfo = chartEditStore.getStorageInfo()
-      
-      // 1. Lưu dự án lên Server (Cloud Publishing)
-      const saveRes = await saveProjectApi({
-        id: idStr,
-        ...storageInfo
-      })
-
-      if (saveRes) {
-        // 2. Tải JSON dự phòng
-        const jsonContent = JSON.stringify(storageInfo, null, 2)
-        downloadTextFile(jsonContent, `tinix-dashboard-${new Date().getTime()}`, 'json')
-        
-        // 3. Sao chép mã nhúng
-        try {
-          await navigator.clipboard.writeText(embedCode)
-          window['$message'].success('Phát hành thành công! Dashboard đã được lưu trực tuyến và Mã nhúng Iframe đã được sao chép.')
-        } catch (e) {
-          window['$message'].success('Phát hành thành công! Link xem trước đã sẵn sàng.')
-        }
-      } else {
-        window['$message'].error('Lỗi khi lưu Dashboard lên Server. Vui lòng kiểm tra lại kết nối.')
-      }
-    }
-  })
+  const saveRes = await saveProjectApi({ id: idStr, ...storageInfo })
+  if (!saveRes) {
+    window['$message'].error('Lỗi khi lưu Dashboard lên Server. Vui lòng kiểm tra lại kết nối.')
+    return
+  }
+  embedPanelShow.value = true
 }
 
 // Lưu thành mẫu (Save as Template)

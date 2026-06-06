@@ -32,17 +32,33 @@
     @close="closeModal"
     @edit="editHandle"
   ></project-items-modal-card>
+  <EmbedPanel
+    v-model:show="embedPanelShow"
+    :dashboard-id="embedDashboardId"
+    :project-data="embedProjectData"
+    @saved="handleEmbedSaved"
+  />
 </template>
 
 <script setup lang="ts">
 import { ProjectItemsCard } from '../ProjectItemsCard/index'
 import { ProjectItemsModalCard } from '../ProjectItemsModalCard/index'
+import EmbedPanel from '@/components/EmbedPanel/index.vue'
 import { icon } from '@/plugins'
 import { useModalDataInit } from './hooks/useModal.hook'
 import { useDataListInit } from './hooks/useData.hook'
 
 const { CopyIcon, EllipsisHorizontalCircleSharpIcon } = icon.ionicons5
-const { list, deleteHandle, publishHandle, previewHandle } = useDataListInit()
+const {
+  list,
+  deleteHandle,
+  publishHandle,
+  previewHandle,
+  embedPanelShow,
+  embedDashboardId,
+  embedProjectData,
+  handleEmbedSaved,
+} = useDataListInit()
 const { modalData, modalShow, closeModal, resizeHandle, editHandle } = useModalDataInit()
 </script>
 

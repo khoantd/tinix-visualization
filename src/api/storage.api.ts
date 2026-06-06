@@ -528,3 +528,115 @@ export const deletePrivatePhotoApi = async (id: string) => {
     return null
   }
 }
+
+// --- Embed API ---
+
+export const getEmbedConfigApi = async () => {
+  try {
+    const res = await axios.get('/embed/config')
+    return res.data
+  } catch (err) {
+    console.error('Fetch embed config failed:', err)
+    return null
+  }
+}
+
+export const getEmbedAppsApi = async () => {
+  try {
+    const res = await axios.get('/embed/apps')
+    return res.data
+  } catch (err) {
+    console.error('Fetch embed apps failed:', err)
+    return []
+  }
+}
+
+export const createEmbedAppApi = async (payload: { name: string; allowedOrigins?: string[] }) => {
+  try {
+    const res = await axios.post('/embed/apps', payload)
+    return res.data
+  } catch (err) {
+    console.error('Create embed app failed:', err)
+    return null
+  }
+}
+
+export const rotateEmbedAppKeyApi = async (appId: string) => {
+  try {
+    const res = await axios.post(`/embed/apps/${appId}/rotate`)
+    return res.data
+  } catch (err) {
+    console.error('Rotate embed app key failed:', err)
+    return null
+  }
+}
+
+export const updateEmbedAppOriginsApi = async (appId: string, allowedOrigins: string[]) => {
+  try {
+    const res = await axios.put(`/embed/apps/${appId}/origins`, { allowedOrigins })
+    return res.data
+  } catch (err) {
+    console.error('Update embed app origins failed:', err)
+    return null
+  }
+}
+
+export const mintEmbedTokenApi = async (
+  apiKey: string,
+  payload: { dashboardId: string; user?: { id?: string; email?: string; roles?: string[] } }
+) => {
+  try {
+    const res = await axios.post('/embed/token', payload, {
+      headers: { 'X-Embed-Api-Key': apiKey },
+    })
+    return res.data
+  } catch (err) {
+    console.error('Mint embed token failed:', err)
+    throw err
+  }
+}
+
+export const getEmbedDashboardApi = async (dashboardId: string, token: string) => {
+  try {
+    const res = await axios.get(`/embed/dashboard/${dashboardId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return res.data
+  } catch (err) {
+    console.error('Fetch embed dashboard failed:', err)
+    throw err
+  }
+}
+
+export const publishEmbedDashboardApi = async (
+  dashboardId: string,
+  embedSettings?: { allowedOrigins?: string[]; hideBranding?: boolean; defaultScaleType?: string }
+) => {
+  try {
+    const res = await axios.post('/embed/publish', { dashboardId, embedSettings })
+    return res.data
+  } catch (err) {
+    console.error('Publish embed dashboard failed:', err)
+    return null
+  }
+}
+
+export const revokeEmbedDashboardApi = async (dashboardId: string) => {
+  try {
+    const res = await axios.post('/embed/revoke', { dashboardId })
+    return res.data
+  } catch (err) {
+    console.error('Revoke embed dashboard failed:', err)
+    return null
+  }
+}
+
+export const mintEmbedPreviewTokenApi = async (dashboardId: string) => {
+  try {
+    const res = await axios.post('/embed/preview-token', { dashboardId })
+    return res.data
+  } catch (err) {
+    console.error('Mint embed preview token failed:', err)
+    return null
+  }
+}

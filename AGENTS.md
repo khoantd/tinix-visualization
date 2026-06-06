@@ -164,6 +164,8 @@ Vite proxies `/api` → `http://127.0.0.1:4000` (see `vite.config.ts`).
 | `LITELLM_MODEL` | No | Model name as configured in LiteLLM (default: `gpt-4o-mini`) |
 | `PORT` | No | Backend port, default `4000` |
 | `CONNECTOR_SECRET` | For data connectors | Min 16 chars; encrypts DB passwords and GraphQL auth tokens at rest |
+| `EMBED_JWT_SECRET` | For authenticated embed | Min 32 chars; signs short-lived embed JWTs |
+| `EMBED_TOKEN_TTL_SECONDS` | No | Embed token lifetime (default `300`) |
 
 Runtime provider selection is available in **Data Management → Cấu hình AI** and persisted in SQLite (`system_settings`, id `ai_setting`). Credentials stay in `.env` only.
 
@@ -210,6 +212,25 @@ Data fetch hooks: `src/hooks/useChartDataFetch.hook.ts`, `useChartDataPondFetch.
 - **API client:** `getConnectorEnginesApi`, `createConnectorApi`, `runConnectorQueryApi`, etc. in `src/api/storage.api.ts`.
 - **Requires:** `npm run dev:all`, `cd server && npm install`, and `CONNECTOR_SECRET` in `.env`.
 
+### Authenticated dashboard embed
+
+Embed published dashboards in external web apps with short-lived JWTs (Metabase/Looker-style).
+
+- **Backend:** `server/embed.service.js` — JWT mint/verify, `embed_apps` table, publish enforcement.
+- **Routes:** `POST /api/embed/token` (requires `X-Embed-Api-Key`), `GET /api/embed/dashboard/:id` (Bearer JWT), `POST /api/embed/publish`, `POST /api/embed/revoke`.
+- **Embed route:** `/#/embed/:id?token=…` — bypasses login; loads via `GET /api/embed/dashboard/:id`.
+- **SDK:** `public/tinix-embed.js` — `TinixEmbed.render({ container, dashboardId, token, baseUrl })`.
+- **Vue wrapper:** `src/components/TinixEmbed.vue` for Vue parent apps.
+- **Admin UI:** `src/components/EmbedPanel/index.vue` — editor header & project list **Publish** action.
+
+**Parent app integration:**
+
+1. In TiniX: publish dashboard → **Integrate** tab → create embed app → copy API key to parent backend `.env`.
+2. Parent backend: `POST /api/embed/token` with `X-Embed-Api-Key` + `{ dashboardId, user }` → returns `{ token }`.
+3. Parent frontend: load `/tinix-embed.js`, call `TinixEmbed.render({ token, ... })`. Never expose the API key in browser code.
+
+Embed tokens scope dataset/connector reads to resources referenced by the published dashboard config.
+
 ### Persist a new entity
 
 1. Add table in `server/db.js` (`CREATE TABLE IF NOT EXISTS …`).
@@ -247,5 +268,7 @@ Follow the phase order in [`.cursor/CURSOR.md`](.cursor/CURSOR.md):
 | Component registry | `src/packages/index.ts` |
 | Save/load project | `src/api/storage.api.ts` → `server/index.js` |
 | Preview without editor session | `src/views/preview/utils/storage.ts` |
+| Authenticated embed viewer | `src/views/embed/` |
+| Embed admin panel | `src/components/EmbedPanel/index.vue` |
 | Template market | `src/views/project/templateMarket/` |
 | Global themes | `src/settings/chartThemes/` |

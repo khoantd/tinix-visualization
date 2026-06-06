@@ -11,6 +11,9 @@ interface Window {
 
   // biên tập JSON đối tượng lưu trữ
   opener: any
+
+  /** Set on authenticated embed iframe routes */
+  __TINIX_EMBED_TOKEN__?: string
 }
 
 declare type Recordable<T = any> = Record<string, T>

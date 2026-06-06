@@ -1,6 +1,25 @@
 import { Router } from 'vue-router';
-import { PageEnum } from '@/enums/pageEnum'
+import { PageEnum, EmbedEnum } from '@/enums/pageEnum'
 import { loginCheck } from '@/utils'
+import { StorageEnum } from '@/enums/storageEnum'
+import { getSessionStorage, setSessionStorage } from '@/utils'
+
+function hasEmbedAccess(to: { meta?: Record<string, unknown>; query: Record<string, unknown> }): boolean {
+  const tokenFromQuery = typeof to.query.token === 'string' ? to.query.token : null
+  if (tokenFromQuery) {
+    setSessionStorage(StorageEnum.GO_EMBED_TOKEN, tokenFromQuery)
+    // @ts-ignore
+    window.__TINIX_EMBED_TOKEN__ = tokenFromQuery
+    return true
+  }
+  const stored = getSessionStorage(StorageEnum.GO_EMBED_TOKEN)
+  if (stored && typeof stored === 'string') {
+    // @ts-ignore
+    window.__TINIX_EMBED_TOKEN__ = stored
+    return true
+  }
+  return false
+}
 
 export function createRouterGuards(router: Router) {
   // tiền tố
@@ -17,6 +36,23 @@ export function createRouterGuards(router: Router) {
     const isErrorPage = router.getRoutes().findIndex((item) => item.name === to.name);
     if (isErrorPage === -1) {
       next({ name: PageEnum.ERROR_PAGE_NAME_404 })
+      return
+    }
+
+    const isEmbedRoute = to.meta?.isEmbed === true
+    if (isEmbedRoute) {
+      if (to.name === EmbedEnum.CHART_EMBED_ERROR_NAME) {
+        next()
+        return
+      }
+      if (hasEmbedAccess(to)) {
+        next()
+        return
+      }
+      next({
+        name: EmbedEnum.CHART_EMBED_ERROR_NAME,
+        query: { code: '401', message: 'missing_token' },
+      })
       return
     }
 
