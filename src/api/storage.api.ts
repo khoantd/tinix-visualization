@@ -118,10 +118,30 @@ export const saveSystemTemplateApi = async (templateData: any) => {
 }
 
 // APIs cho Datasets
-export const getDatasetsApi = async () => {
+export type DatasetSourceType = 'upload' | 'sql' | 'table'
+export type DatasetRefreshPolicy = 'manual' | 'on_load'
+
+export interface DatasetRecord {
+  id: string
+  name: string
+  type: string
+  source_type?: DatasetSourceType
+  connector_id?: string | null
+  connector_name?: string | null
+  sql_query?: string | null
+  table_ref?: { schema?: string; table: string } | null
+  refresh_policy?: DatasetRefreshPolicy
+  content?: any[]
+  bi_config?: any
+  updated_at?: string
+}
+
+export const getDatasetsApi = async (includeContent = false) => {
   try {
-    const res = await axios.get('/datasets')
-    return res.data
+    const res = await axios.get('/datasets', {
+      params: { includeContent: includeContent ? 'true' : undefined },
+    })
+    return res.data as DatasetRecord[]
   } catch (err) {
     console.error('Fetch datasets failed:', err)
     return null
@@ -163,10 +183,276 @@ export const deleteDatasetApi = async (id: string) => {
   }
 }
 
-// APIs cho Auto-BI
-export const analyzeDatasetApi = async (sampleData: any) => {
+export const refreshDatasetApi = async (id: string) => {
   try {
-    const res = await axios.post('/auto-bi/analyze', { sampleData })
+    const res = await axios.post(`/datasets/${id}/refresh`)
+    return res.data
+  } catch (err) {
+    console.error('Refresh dataset failed:', err)
+    return null
+  }
+}
+
+export const saveDatasetFromQueryApi = async (payload: {
+  id: string
+  name: string
+  connectorId: string
+  sql?: string
+  query?: string
+  variables?: Record<string, unknown>
+  rootField?: string | null
+  refreshPolicy?: DatasetRefreshPolicy
+  previewLimit?: number
+}) => {
+  try {
+    const res = await axios.post('/datasets/from-query', payload)
+    return res.data
+  } catch (err: any) {
+    console.error('Save dataset from query failed:', err)
+    return err.response?.data || null
+  }
+}
+
+export const saveDatasetFromTableApi = async (payload: {
+  id: string
+  name: string
+  connectorId: string
+  schema?: string
+  table: string
+  refreshPolicy?: DatasetRefreshPolicy
+}) => {
+  try {
+    const res = await axios.post('/datasets/from-table', payload)
+    return res.data
+  } catch (err: any) {
+    console.error('Save dataset from table failed:', err)
+    return err.response?.data || null
+  }
+}
+
+// APIs cho DB Connectors
+export type ConnectorEngine = 'postgres' | 'mysql' | 'sqlite' | 'graphql'
+export type ConnectorAuthType = 'none' | 'bearer' | 'api_key' | 'basic'
+export type ConnectorStatus = 'connected' | 'error' | 'unknown'
+
+export interface ConnectorEngineInfo {
+  id: ConnectorEngine
+  label: string
+  defaultPort: number | null
+  fields: string[]
+}
+
+export interface ConnectorConfigPublic {
+  host?: string
+  port?: number
+  database?: string
+  username?: string
+  ssl?: boolean
+  filePath?: string
+  passwordSet?: boolean
+  endpoint?: string
+  authType?: ConnectorAuthType
+  authHeaderName?: string
+  allowIntrospection?: boolean
+  basicUsername?: string
+  customHeaders?: Record<string, string>
+  tokenSet?: boolean
+  apiKeySet?: boolean
+  basicPasswordSet?: boolean
+}
+
+export interface DbConnector {
+  id: string
+  name: string
+  engine: ConnectorEngine
+  config: ConnectorConfigPublic
+  connectionSummary: string
+  status: ConnectorStatus
+  statusMessage?: string | null
+  lastTestedAt?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ConnectorQueryResult {
+  rows: Record<string, unknown>[]
+  rowCount: number
+  durationMs: number
+  sql?: string
+  query?: string
+  rootField?: string | null
+  graphqlErrors?: Array<{ message: string; path?: Array<string | number> }> | null
+}
+
+export interface ConnectorSecretsPayload {
+  password?: string
+  token?: string
+  apiKey?: string
+  basicPassword?: string
+}
+
+export interface ConnectorQueryPayload {
+  sql?: string
+  query?: string
+  variables?: Record<string, unknown>
+  rootField?: string | null
+  limit?: number
+}
+
+export const getConnectorEnginesApi = async (): Promise<ConnectorEngineInfo[] | null> => {
+  try {
+    const res = await axios.get('/connectors/engines')
+    return res.data
+  } catch (err) {
+    console.error('Fetch connector engines failed:', err)
+    return null
+  }
+}
+
+export const getConnectorsApi = async (): Promise<DbConnector[] | null> => {
+  try {
+    const res = await axios.get('/connectors')
+    return res.data
+  } catch (err) {
+    console.error('Fetch connectors failed:', err)
+    return null
+  }
+}
+
+export const getConnectorApi = async (id: string): Promise<DbConnector | null> => {
+  try {
+    const res = await axios.get(`/connectors/${id}`)
+    return res.data
+  } catch (err) {
+    console.error('Fetch connector failed:', err)
+    return null
+  }
+}
+
+export const createConnectorApi = async (payload: {
+  id: string
+  name: string
+  engine: ConnectorEngine
+  config: Record<string, unknown>
+} & ConnectorSecretsPayload) => {
+  try {
+    const res = await axios.post('/connectors', payload)
+    return res.data
+  } catch (err: any) {
+    console.error('Create connector failed:', err)
+    return err.response?.data || null
+  }
+}
+
+export const updateConnectorApi = async (
+  id: string,
+  payload: {
+    name?: string
+    engine?: ConnectorEngine
+    config?: Record<string, unknown>
+  } & ConnectorSecretsPayload
+) => {
+  try {
+    const res = await axios.put(`/connectors/${id}`, payload)
+    return res.data
+  } catch (err: any) {
+    console.error('Update connector failed:', err)
+    return err.response?.data || null
+  }
+}
+
+export const deleteConnectorApi = async (id: string) => {
+  try {
+    const res = await axios.delete(`/connectors/${id}`)
+    return res.data
+  } catch (err: any) {
+    console.error('Delete connector failed:', err)
+    return err.response?.data || null
+  }
+}
+
+export const testConnectorApi = async (id: string) => {
+  try {
+    const res = await axios.post(`/connectors/${id}/test`)
+    return res.data
+  } catch (err: any) {
+    console.error('Test connector failed:', err)
+    return err.response?.data || null
+  }
+}
+
+export const getConnectorSchemasApi = async (id: string) => {
+  try {
+    const res = await axios.get(`/connectors/${id}/schemas`)
+    return res.data as string[]
+  } catch (err) {
+    console.error('Fetch schemas failed:', err)
+    return null
+  }
+}
+
+export const getConnectorTablesApi = async (id: string, schema?: string) => {
+  try {
+    const res = await axios.get(`/connectors/${id}/tables`, { params: { schema } })
+    return res.data as { name: string; type: string }[]
+  } catch (err) {
+    console.error('Fetch tables failed:', err)
+    return null
+  }
+}
+
+export const getConnectorColumnsApi = async (id: string, schema: string | undefined, table: string) => {
+  try {
+    const res = await axios.get(`/connectors/${id}/columns`, { params: { schema, table } })
+    return res.data as { name: string; type: string; nullable: boolean }[]
+  } catch (err) {
+    console.error('Fetch columns failed:', err)
+    return null
+  }
+}
+
+export const runConnectorQueryApi = async (
+  id: string,
+  payload: ConnectorQueryPayload
+): Promise<ConnectorQueryResult | null> => {
+  try {
+    const res = await axios.post(`/connectors/${id}/query`, payload)
+    return res.data
+  } catch (err: any) {
+    console.error('Run connector query failed:', err)
+    throw err.response?.data || err
+  }
+}
+
+// APIs cho Auto-BI
+export type AiProviderId = 'openrouter' | 'litellm'
+
+export interface AiProviderInfo {
+  id: AiProviderId
+  label: string
+  configured: boolean
+  model: string | null
+}
+
+export interface AutoBiProvidersResponse {
+  providers: AiProviderInfo[]
+  activeProvider: AiProviderId | null
+  defaultProvider: AiProviderId | null
+}
+
+export const getAutoBiProvidersApi = async (): Promise<AutoBiProvidersResponse | null> => {
+  try {
+    const res = await axios.get('/auto-bi/providers')
+    return res.data
+  } catch (err) {
+    console.error('Fetch Auto-BI providers failed:', err)
+    return null
+  }
+}
+
+export const analyzeDatasetApi = async (sampleData: any, provider?: AiProviderId) => {
+  try {
+    const res = await axios.post('/auto-bi/analyze', { sampleData, provider })
     return res.data
   } catch (err) {
     console.error('Analyze dataset failed:', err)
@@ -174,9 +460,9 @@ export const analyzeDatasetApi = async (sampleData: any) => {
   }
 }
 
-export const suggestChartsApi = async (confirmedSchema: any) => {
+export const suggestChartsApi = async (confirmedSchema: any, provider?: AiProviderId) => {
   try {
-    const res = await axios.post('/auto-bi/suggest', { confirmedSchema })
+    const res = await axios.post('/auto-bi/suggest', { confirmedSchema, provider })
     return res.data
   } catch (err) {
     console.error('Suggest charts failed:', err)

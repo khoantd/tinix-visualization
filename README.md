@@ -125,18 +125,36 @@ cd tinix-visualization
 
 ```bash
 npm install
+cd server && npm install   # pg, mysql2, better-sqlite3 cho backend
 ```
 
 ### Bước 3: Cấu hình Môi trường
 
-Hệ thống cần một API Key để chạy tính năng Auto-BI.
+Hệ thống cần cấu hình ít nhất một AI provider để chạy tính năng Auto-BI.
 
 1. Sao chép file mẫu: `cp .env.example .env`.
-2. Mở file `.env` và điền key của bạn:
+2. Mở file `.env` và điền provider bạn muốn dùng:
+
+   **OpenRouter (mặc định):**
 
    ```env
+   AI_PROVIDER=openrouter
    OPENROUTER_API_KEY=your_key_here
+   OPENROUTER_MODEL=qwen/qwen-3-coder-next
    ```
+
+   **LiteLLM proxy (OpenAI-compatible):**
+
+   ```env
+   AI_PROVIDER=litellm
+   LITELLM_BASE_URL=http://127.0.0.1:4000/v1
+   LITELLM_API_KEY=your_litellm_key_here
+   LITELLM_MODEL=gpt-4o-mini
+   ```
+
+3. Trong ứng dụng, vào **Thư viện Dữ liệu → Cấu hình AI** để chuyển đổi provider khi cả hai đã được cấu hình trong `.env`.
+
+4. **Kết nối DB (PostgreSQL / MySQL / SQLite):** thêm `CONNECTOR_SECRET` (tối thiểu 16 ký tự) vào `.env` để mã hóa mật khẩu connector. Tính năng này cần backend — dùng `npm run dev:all`, không chỉ `npm run dev`.
 
 #### 💡 Mô hình LLM khuyến nghị (Recommended Models)
 
@@ -147,12 +165,12 @@ Hệ thống cần một API Key để chạy tính năng Auto-BI.
 - **DeepSeek V3 / Coder:** Một lựa chọn tuyệt vời với chi phí thấp và hiệu năng cao.
 - **GPT-4o / Claude 3.5 Sonnet:** Các mô hình hàng đầu thế giới cho độ chính xác tuyệt đối.
 
-*Lưu ý: Bạn có thể thay đổi model trong file `server/ai.service.js` hoặc qua biến môi trường `OPENROUTER_MODEL`.*
+*Lưu ý: Bạn có thể thay đổi model qua biến môi trường `OPENROUTER_MODEL` hoặc `LITELLM_MODEL` tùy provider.*
 
 ### Bước 4: Khởi chạy
 
 ```bash
-# Chạy đồng thời cả Frontend (Cổng 3000) và Backend Server (Cổng 4000)
+# Chạy đồng thời Frontend (cổng 3020) và Backend (cổng 4000)
 npm run dev:all
 ```
 

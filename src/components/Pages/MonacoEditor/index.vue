@@ -7,6 +7,7 @@
 import { onMounted, watch, PropType } from 'vue'
 import { useMonacoEditor } from './index.hook'
 import { EditorWorker } from './index'
+import { registerGraphQLLanguage } from './graphqlLanguage'
 
 const props = defineProps({
   width: {
@@ -46,6 +47,7 @@ const updateMonacoVal = (_val?: string) => {
 }
 
 onMounted(() => {
+  registerGraphQLLanguage()
   const monacoEditor = createEditor(props.editorOptions)
   monacoEditor!.onDidChangeModelContent(() => {
     emits('update:modelValue', monacoEditor!.getValue())

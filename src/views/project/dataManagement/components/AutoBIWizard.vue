@@ -10,6 +10,9 @@
             Quay lại
           </n-button>
           <n-h2 style="margin: 0">Auto-BI Workspace: {{ dataset?.name }}</n-h2>
+          <n-tag v-if="activeProviderLabel" size="small" type="info" :bordered="false">
+            {{ activeProviderLabel }}
+          </n-tag>
         </n-space>
         <n-space>
           <n-button @click="handleRestart" ghost type="warning" size="small" v-if="currentStep > 1">Bắt đầu lại</n-button>
@@ -145,7 +148,7 @@ import { icon } from '@/plugins'
 import axios from 'axios'
 import { getUUID, fetchPathByName, routerTurnByPath } from '@/utils'
 import { ChartEnum } from '@/enums/pageEnum'
-import { saveProjectApi, saveDatasetApi, analyzeDatasetApi, suggestChartsApi } from '@/api/storage.api'
+import { saveProjectApi, saveDatasetApi, analyzeDatasetApi, suggestChartsApi, getAutoBiProvidersApi, type AiProviderId } from '@/api/storage.api'
 
 const props = defineProps({
   dataset: Object
@@ -159,6 +162,19 @@ const currentStep = ref(1)
 const currentStatus = ref<'process' | 'error' | 'finish' | 'wait'>('process')
 const loading = ref(false)
 const saveLoading = ref(false)
+const activeProvider = ref<AiProviderId | null>(null)
+const activeProviderLabel = ref('')
+
+const loadActiveProvider = async () => {
+  const data = await getAutoBiProvidersApi()
+  if (!data) return
+  const resolved = data.activeProvider || data.defaultProvider
+  activeProvider.value = resolved
+  const match = data.providers.find(p => p.id === resolved)
+  if (match) {
+    activeProviderLabel.value = match.model ? `${match.label} · ${match.model}` : match.label
+  }
+}
 
 const analysisResult = reactive<{ columns: any[], insights: string[] }>({
   columns: [],
@@ -237,7 +253,8 @@ const getThematicThumbnail = (charts: ChartSuggestion[]) => {
   return 'project/autobi_generic.png'
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadActiveProvider()
   if (props.dataset?.bi_config) {
     const config = props.dataset.bi_config
     analysisResult.columns = config.analysisResult?.columns || []
@@ -280,7 +297,7 @@ const startAnalysis = async (force = false) => {
   loading.value = true
   try {
     const sample = props.dataset?.content?.slice(0, 15) || []
-    const res = await analyzeDatasetApi(sample)
+    const res = await analyzeDatasetApi(sample, activeProvider.value ?? undefined)
     
     // Ánh xạ phòng thủ cao: Kiểm tra nhiều loại key có thể có
     let rawColumns = res?.columns || res?.data?.columns || []
@@ -323,7 +340,7 @@ const fetchSuggestions = async (force = false) => {
   
   loading.value = true
   try {
-    const res = await suggestChartsApi(analysisResult)
+    const res = await suggestChartsApi(analysisResult, activeProvider.value ?? undefined)
     if (!res) throw new Error('API failed')
     // Cập nhật cấu trúc mới: { suggestedTheme, executiveSummary, charts }
     if (res && res.charts) {
@@ -626,7 +643,7 @@ const schemaColumns = [
   left: 0;
   right: 0;
   bottom: 0;
-  background: #101014; // Default naive-ui dark bg
+  background-color: var(--n-color);
   z-index: 2000;
   display: flex;
   flex-direction: column;
@@ -646,7 +663,7 @@ const schemaColumns = [
 .wizard-footer {
   flex-shrink: 0;
   padding-top: 20px;
-  border-top: 1px solid rgba(255,255,255,0.09);
+  border-top: 1px solid var(--n-border-color);
 }
 
 .step-container {
@@ -655,7 +672,7 @@ const schemaColumns = [
 }
 
 .schema-table {
-  background: rgba(255,255,255,0.02);
+  background-color: var(--n-color-embedded);
 }
 
 .narrow-view {

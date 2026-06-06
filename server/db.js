@@ -56,6 +56,18 @@ db.exec(`
     bi_config TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS db_connectors (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    engine TEXT NOT NULL,
+    config TEXT NOT NULL,
+    status TEXT DEFAULT 'unknown',
+    status_message TEXT,
+    last_tested_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Migration: Thêm cột bi_config nếu chưa có
@@ -63,6 +75,24 @@ try {
   db.exec("ALTER TABLE datasets ADD COLUMN bi_config TEXT;");
 } catch (e) {
   // Cột đã tồn tại hoặc lỗi khác thì bỏ qua
+}
+
+const datasetMigrations = [
+  "ALTER TABLE datasets ADD COLUMN source_type TEXT DEFAULT 'upload';",
+  'ALTER TABLE datasets ADD COLUMN connector_id TEXT;',
+  'ALTER TABLE datasets ADD COLUMN sql_query TEXT;',
+  'ALTER TABLE datasets ADD COLUMN table_ref TEXT;',
+  "ALTER TABLE datasets ADD COLUMN refresh_policy TEXT DEFAULT 'manual';",
+  'ALTER TABLE datasets ADD COLUMN graphql_variables TEXT;',
+  'ALTER TABLE datasets ADD COLUMN graphql_root_field TEXT;',
+];
+
+for (const sql of datasetMigrations) {
+  try {
+    db.exec(sql);
+  } catch (e) {
+    // column already exists
+  }
 }
 
 console.log('SQLite Database initialized at:', dbPath);
