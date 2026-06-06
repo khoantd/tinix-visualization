@@ -56,7 +56,10 @@ const { entityRef, previewRef } = useScale(chartEditStore)
 const { show } = useComInstall(chartEditStore)
 useInitVChartsTheme(chartEditStore)
 
-useEmbedMessaging(() => document.documentElement.scrollHeight || window.innerHeight)
+useEmbedMessaging(
+  () => document.documentElement.scrollHeight || window.innerHeight,
+  show
+)
 </script>
 
 <style lang="scss" scoped>

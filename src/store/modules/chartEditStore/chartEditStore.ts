@@ -4,7 +4,7 @@ import { CreateComponentType, CreateComponentGroupType } from '@/packages/index.
 import { PublicGroupConfigClass } from '@/packages/public/publicConfig'
 import debounce from 'lodash/debounce'
 import cloneDeep from 'lodash/cloneDeep'
-import { defaultTheme, globalThemeJson } from '@/settings/chartThemes/index'
+import { defaultTheme, getGlobalThemeJson } from '@/settings/chartThemes/index'
 import { requestInterval, previewScaleType, requestIntervalUnit } from '@/settings/designSetting'
 // kỷ lục kỷ lục
 import { useChartHistoryStore } from '@/store/modules/chartHistoryStore/chartHistoryStore'
@@ -113,9 +113,11 @@ export const useChartEditStore = defineStore({
       // Danh sách màu tùy chỉnh
       chartCustomThemeColorInfo: undefined,
       // Cấu hình toàn cầu
-      chartThemeSetting: globalThemeJson,
+      chartThemeSetting: getGlobalThemeJson('dark'),
       // vChart chủ đề
       vChartThemeName: 'vScreenVolcanoBlue',
+      // Chế độ nền canvas
+      canvasThemeMode: 'dark',
       // Phương pháp thích ứng
       previewScaleType: previewScaleType
     },

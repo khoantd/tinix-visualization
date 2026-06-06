@@ -16,7 +16,7 @@ export const option = {
   // phân loại tự động
   sort: true,
   color: '#1370fb',
-  textColor: '#CDD2F8FF',
+  textColor: '#1D2129',
   borderColor: '#1370fb80',
   carousel: 'single',
   //Kích thước phông chữ số sê-ri

@@ -1,14 +1,13 @@
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch, type Ref } from 'vue'
+import { notifyEmbedParent, type EmbedMessage } from '../utils/messaging'
 
-type EmbedMessage =
-  | { type: 'tinix:ready' }
-  | { type: 'tinix:resize'; height: number }
-  | { type: 'tinix:error'; code: string; message?: string }
-
-export function useEmbedMessaging(getHeight: () => number) {
+export function useEmbedMessaging(getHeight: () => number, readyWhen?: Ref<boolean>) {
   const postToParent = (payload: EmbedMessage) => {
-    if (window.parent === window) return
-    window.parent.postMessage(payload, '*')
+    notifyEmbedParent(payload)
+  }
+
+  const notifyReady = () => {
+    postToParent({ type: 'tinix:ready' })
   }
 
   const notifyResize = () => {
@@ -16,23 +15,42 @@ export function useEmbedMessaging(getHeight: () => number) {
   }
 
   let resizeObserver: ResizeObserver | null = null
+  let readySent = false
+
+  const sendReadyOnce = () => {
+    if (readySent) return
+    readySent = true
+    notifyReady()
+    notifyResize()
+  }
 
   onMounted(() => {
-    postToParent({ type: 'tinix:ready' })
-    notifyResize()
-
     if (typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => notifyResize())
       resizeObserver.observe(document.body)
     } else {
       window.addEventListener('resize', notifyResize)
     }
+
+    if (!readyWhen) {
+      sendReadyOnce()
+    }
   })
+
+  if (readyWhen) {
+    watch(
+      readyWhen,
+      (isReady) => {
+        if (isReady) sendReadyOnce()
+      },
+      { immediate: true }
+    )
+  }
 
   onUnmounted(() => {
     resizeObserver?.disconnect()
     window.removeEventListener('resize', notifyResize)
   })
 
-  return { postToParent, notifyResize }
+  return { postToParent, notifyReady, notifyResize }
 }

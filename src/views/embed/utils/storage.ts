@@ -2,6 +2,7 @@ import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore
 import { getEmbedDashboardApi } from '@/api/storage.api'
 import { EmbedEnum } from '@/enums/pageEnum'
 import router from '@/router'
+import { notifyEmbedError } from './messaging'
 
 const chartEditStore = useChartEditStore()
 
@@ -28,6 +29,7 @@ export const loadEmbedDashboard = async () => {
   const token = getEmbedToken()
 
   if (!dashboardId || !token) {
+    notifyEmbedError('401', 'missing_token')
     router.replace({
       name: EmbedEnum.CHART_EMBED_ERROR_NAME,
       query: { code: '401', message: 'missing_token' },
@@ -38,6 +40,7 @@ export const loadEmbedDashboard = async () => {
   try {
     const projectData = await getEmbedDashboardApi(dashboardId, token)
     if (!projectData) {
+      notifyEmbedError('403', 'not_published')
       router.replace({
         name: EmbedEnum.CHART_EMBED_ERROR_NAME,
         query: { code: '403', message: 'not_published' },
@@ -65,12 +68,12 @@ export const loadEmbedDashboard = async () => {
   } catch (err: any) {
     const msg = err?.response?.data?.error || err?.message || ''
     const isExpired = msg.toLowerCase().includes('expired')
+    const code = isExpired ? '401' : '403'
+    const message = isExpired ? 'token_expired' : 'not_published'
+    notifyEmbedError(code, message)
     router.replace({
       name: EmbedEnum.CHART_EMBED_ERROR_NAME,
-      query: {
-        code: isExpired ? '401' : '403',
-        message: isExpired ? 'token_expired' : 'not_published',
-      },
+      query: { code, message },
     })
     return null
   }

@@ -9,8 +9,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { notifyEmbedError } from './utils/messaging'
 
 const route = useRoute()
 
@@ -42,6 +43,10 @@ const description = computed(() => {
     return 'This dashboard has not been published for embedding yet.'
   }
   return 'Please verify the dashboard ID, publish status, and embed token.'
+})
+
+onMounted(() => {
+  notifyEmbedError(errorCode.value, messageKey.value || title.value)
 })
 </script>
 

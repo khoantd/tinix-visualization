@@ -12,6 +12,7 @@ import westeros from './themes/westeros.json'
 import wonderland from './themes/wonderland.json'
 // Cấu hình chi tiết chủ đề mặc định
 import themeJson from './global.theme.json'
+import themeJsonLight from './global.theme.light.json'
 
 export const chartColors = {
   dark,
@@ -32,7 +33,21 @@ export const chartColors = {
 export const defaultTheme = 'dark'
 
 // Danh sách các màu của bộ chọn được hiển thị theo mặc định
-export const swatchesColors = ['#232324', '#2a2a2b', '#313132', '#373739', '#757575', '#e0e0e0', '#eeeeee', '#fafafa']
+export const swatchesColors = [
+  '#FFFFFF',
+  '#F8FAFC',
+  '#F1F5F9',
+  '#E2E8F0',
+  '#CBD5E1',
+  '#232324',
+  '#2a2a2b',
+  '#313132',
+  '#373739',
+  '#757575',
+  '#e0e0e0',
+  '#eeeeee',
+  '#fafafa'
+]
 
 // Màu tùy chỉnh
 export type CustomColorsType = {
@@ -73,4 +88,14 @@ export interface GlobalThemeJsonType extends Partial<ThemeJsonType> {
   renderer?: EchartsRenderer,
   [T:string]: any
 }
-export const globalThemeJson = {...themeJson, dataset: null, renderer: 'svg' as const }
+export type CanvasThemeMode = 'light' | 'dark'
+
+export const globalThemeJsonDark = { ...themeJson, dataset: null, renderer: 'svg' as const }
+export const globalThemeJsonLight = { ...themeJsonLight, dataset: null, renderer: 'svg' as const }
+
+/** @deprecated use getGlobalThemeJson('dark') */
+export const globalThemeJson = globalThemeJsonDark
+
+export const getGlobalThemeJson = (mode: CanvasThemeMode = 'dark'): GlobalThemeJsonType => {
+  return mode === 'light' ? globalThemeJsonLight : globalThemeJsonDark
+}

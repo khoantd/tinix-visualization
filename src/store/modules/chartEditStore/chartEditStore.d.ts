@@ -10,7 +10,7 @@ import {
   RequestParamsObjType
 } from '@/enums/httpEnum'
 import { PreviewScaleEnum } from '@/enums/styleEnum'
-import type { ChartColorsNameType, CustomColorsType, GlobalThemeJsonType } from '@/settings/chartThemes/index'
+import type { CanvasThemeMode, ChartColorsNameType, CustomColorsType, GlobalThemeJsonType } from '@/settings/chartThemes/index'
 
 // Chỉnh sửa thuộc tính canvas
 export enum EditCanvasTypeEnum {
@@ -58,6 +58,7 @@ export enum EditCanvasConfigEnum {
   CHART_CUSTOM_THEME_COLOR_INFO = 'chartCustomThemeColorInfo',
   CHART_THEME_SETTING = 'chartThemeSetting',
   VCHART_THEME_NAME = 'vChartThemeName',
+  CANVAS_THEME_MODE = 'canvasThemeMode',
   BACKGROUND = 'background',
   BACKGROUND_IMAGE = 'backgroundImage',
   SELECT_COLOR = 'selectColor',
@@ -104,6 +105,8 @@ export interface EditCanvasConfigType {
   [EditCanvasConfigEnum.SELECT_COLOR]: boolean,
   // vChart chủ đề
   [EditCanvasConfigEnum.VCHART_THEME_NAME]: string
+  // Chế độ nền canvas (sáng / tối)
+  [EditCanvasConfigEnum.CANVAS_THEME_MODE]?: CanvasThemeMode
   // Chế độ hiển thị xem trước
   [EditCanvasConfigEnum.PREVIEW_SCALE_TYPE]: PreviewScaleEnum
 }

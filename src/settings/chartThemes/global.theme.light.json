@@ -1,0 +1,111 @@
+{
+  "title": {
+    "show": true,
+    "textStyle": {
+      "color": "#4E5969",
+      "fontSize": 18
+    },
+    "subtextStyle": {
+      "color": "#86909C",
+      "fontSize": 14
+    }
+  },
+  "xAxis": {
+    "show": true,
+    "name": "",
+    "nameGap": 15,
+    "nameTextStyle": {
+      "color": "#4E5969",
+      "fontSize": 12
+    },
+    "inverse": false,
+    "axisLabel": {
+      "show": true,
+      "fontSize": 12,
+      "color": "#4E5969",
+      "rotate": 0
+    },
+    "position": "bottom",
+    "axisLine": {
+      "show": true,
+      "lineStyle": {
+        "color": "#C9CDD4",
+        "width": 1
+      },
+      "onZero": true
+    },
+    "axisTick": {
+      "show": true,
+      "length": 5
+    },
+    "splitLine": {
+      "show": false,
+      "lineStyle": {
+        "color": "#E5E6EB",
+        "width": 1,
+        "type": "solid"
+      }
+    }
+  },
+  "yAxis": {
+    "show": true,
+    "name": "",
+    "nameGap": 15,
+    "nameTextStyle": {
+      "color": "#4E5969",
+      "fontSize": 12
+    },
+    "inverse": false,
+    "axisLabel": {
+      "show": true,
+      "fontSize": 12,
+      "color": "#4E5969",
+      "rotate": 0
+    },
+    "position": "left",
+    "axisLine": {
+      "show": true,
+      "lineStyle": {
+        "color": "#C9CDD4",
+        "width": 1
+      },
+      "onZero": true
+    },
+    "axisTick": {
+      "show": true,
+      "length": 5
+    },
+    "splitLine": {
+      "show": true,
+      "lineStyle": {
+        "color": "#E5E6EB",
+        "width": 1,
+        "type": "solid"
+      }
+    }
+  },
+  "legend": {
+    "show": true,
+    "type": "scroll",
+    "x": "center",
+    "y": "top",
+    "icon": "circle",
+    "orient": "horizontal",
+    "textStyle": {
+      "color": "#4E5969",
+      "fontSize": 18
+    },
+    "itemHeight": 15,
+    "itemWidth": 15,
+    "pageTextStyle": {
+      "color": "#4E5969"
+    }
+  },
+  "grid": {
+    "show": false,
+    "left": "10%",
+    "top": "60",
+    "right": "10%",
+    "bottom": "60"
+  }
+}

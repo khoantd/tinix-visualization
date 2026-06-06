@@ -43,12 +43,29 @@
               :style="{ maxWidth: previewWidth + 'px' }"
             >
               <n-spin v-if="previewLoading" :description="t('embed.embed_preview_loading')" />
+              <n-result
+                v-else-if="previewError"
+                status="warning"
+                :title="t('embed.embed_preview_error')"
+                :description="previewError"
+              >
+                <template #footer>
+                  <n-button type="primary" @click="retryPreview">
+                    {{ t('embed.embed_preview_retry') }}
+                  </n-button>
+                </template>
+              </n-result>
               <TinixEmbed
                 v-else-if="isPublished && previewToken"
+                :key="embedInstanceKey"
                 :dashboard-id="dashboardId"
                 :token="previewToken"
                 :base-url="baseUrl"
+                :eager="true"
                 height="480"
+                @ready="handlePreviewReady"
+                @error="handlePreviewError"
+                @token-expired="handlePreviewTokenExpired"
               />
               <n-empty v-else :description="t('embed.embed_unpublished')" />
             </div>
@@ -190,6 +207,8 @@ const appLoading = ref(false)
 const rotateLoading = ref<string | null>(null)
 const tokenTtl = ref(300)
 const originsText = ref('')
+const previewError = ref('')
+const embedInstanceKey = ref(0)
 
 const baseUrl = computed(() => window.location.origin.replace(/\/$/, ''))
 
@@ -249,15 +268,45 @@ async function loadMeta() {
 async function refreshPreviewToken() {
   if (!isPublished.value) {
     previewToken.value = ''
+    previewError.value = ''
     return
   }
   previewLoading.value = true
+  previewError.value = ''
   try {
     const res = await mintEmbedPreviewTokenApi(props.dashboardId)
-    previewToken.value = res?.token || ''
+    if (!res?.token) {
+      previewToken.value = ''
+      previewError.value = t('embed.embed_token_mint_failed')
+      window['$message']?.error(t('embed.embed_token_mint_failed'))
+      return
+    }
+    previewToken.value = res.token
+    embedInstanceKey.value += 1
   } finally {
     previewLoading.value = false
   }
+}
+
+function handlePreviewReady() {
+  previewError.value = ''
+}
+
+function handlePreviewError(payload: { code?: string; message?: string }) {
+  if (payload.code === 'timeout') {
+    previewError.value = t('embed.embed_preview_timeout')
+  } else {
+    previewError.value = payload.message || t('embed.embed_preview_error')
+  }
+}
+
+async function handlePreviewTokenExpired() {
+  window['$message']?.warning(t('embed.embed_preview_token_expired'))
+  await refreshPreviewToken()
+}
+
+async function retryPreview() {
+  await refreshPreviewToken()
 }
 
 async function copyText(text: string) {
@@ -359,6 +408,12 @@ watch(
   () => syncFromProject(),
   { deep: true }
 )
+
+watch(activeTab, async (tab) => {
+  if (tab === 'preview' && isPublished.value) {
+    await refreshPreviewToken()
+  }
+})
 </script>
 
 <style lang="scss" scoped>

@@ -13,6 +13,8 @@ import { VChart, type IVChart, type IInitOption } from '@visactor/vchart'
 import { transformHandler } from './transformProps'
 import { IOption } from '@/packages/components/VChart/index.d'
 import { registerChartsAndComponents } from './register'
+import { withVChartAxisTheme } from '@/packages/public/vChart'
+import { useVChartAxisTheme } from '@/hooks/useVChartAxisTheme.hook'
 
 // VChartTải theo yêu cầu: Đăng ký biểu đồ và thành phần
 registerChartsAndComponents()
@@ -159,6 +161,7 @@ const props = defineProps({
 
 const vChartRef = ref()
 let chart: IVChart
+const { canvasThemeMode } = useVChartAxisTheme()
 
 // giải mã props.option,loại trừ dataset
 const { dataset, ...restOfOption } = toRefs(props.option)
@@ -190,16 +193,23 @@ watch(
   }
 )
 
+watch(canvasThemeMode, () => {
+  nextTick(() => {
+    createOrUpdateChart(props.option)
+  })
+})
+
 // gia hạn
 const createOrUpdateChart = (
   chartProps: IOption & {
     dataset: any
   }
 ) => {
+  const themedProps = withVChartAxisTheme(chartProps, canvasThemeMode.value)
   if (vChartRef.value && !chart) {
-    const spec = transformHandler[chartProps.category || '']?.(chartProps)
+    const spec = transformHandler[themedProps.category || '']?.(themedProps)
     chart = new VChart(
-      { ...spec, data: chartProps.dataset },
+      { ...spec, data: themedProps.dataset },
       {
         dom: vChartRef.value,
         ...props.initOptions
@@ -208,8 +218,8 @@ const createOrUpdateChart = (
     chart.renderSync()
     return true
   } else if (chart) {
-    const spec = transformHandler[chartProps.category || '']?.(chartProps)
-    chart.updateSpec({ ...spec, data: toRaw(chartProps.dataset), dataset: undefined }, false, undefined, {
+    const spec = transformHandler[themedProps.category || '']?.(themedProps)
+    chart.updateSpec({ ...spec, data: toRaw(themedProps.dataset), dataset: undefined }, false, undefined, {
       change: false,
       reMake: true,
       reAnimate: true

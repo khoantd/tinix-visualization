@@ -27,4 +27,9 @@ export default {
   embed_save_first: 'Lưu dashboard trước khi phát hành',
   embed_preview_loading: 'Đang tải xem trước…',
   embed_no_apps: 'Chưa có ứng dụng nhúng. Tạo một ứng dụng để tích hợp vào website.',
+  embed_preview_error: 'Xem trước không tải được',
+  embed_preview_retry: 'Thử lại xem trước',
+  embed_token_mint_failed: 'Không tạo được token xem trước. Kiểm tra EMBED_JWT_SECRET và trạng thái phát hành.',
+  embed_preview_timeout: 'Dashboard tải quá lâu.',
+  embed_preview_token_expired: 'Token xem trước hết hạn. Đang làm mới…',
 }

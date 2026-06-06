@@ -27,4 +27,9 @@ export default {
   embed_save_first: 'Save dashboard before publishing',
   embed_preview_loading: 'Loading preview…',
   embed_no_apps: 'No embed apps yet. Create one to integrate with your website.',
+  embed_preview_error: 'Preview failed to load',
+  embed_preview_retry: 'Retry preview',
+  embed_token_mint_failed: 'Could not mint preview token. Check server EMBED_JWT_SECRET and publish status.',
+  embed_preview_timeout: 'Dashboard took too long to load.',
+  embed_preview_token_expired: 'Preview token expired. Refreshing…',
 }

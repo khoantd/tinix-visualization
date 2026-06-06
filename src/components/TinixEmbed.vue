@@ -20,12 +20,14 @@ const props = withDefaults(
     baseUrl?: string
     height?: string | number
     autoHeight?: boolean
+    eager?: boolean
     title?: string
   }>(),
   {
     baseUrl: () => window.location.origin,
     height: '600px',
     autoHeight: true,
+    eager: true,
     title: 'TiniX Dashboard',
   }
 )
@@ -69,6 +71,7 @@ async function mountEmbed() {
     baseUrl: props.baseUrl,
     height: props.height,
     autoHeight: props.autoHeight,
+    eager: props.eager,
     title: props.title,
     onReady: () => emit('ready'),
     onError: (payload: { code?: string; message?: string }) => {

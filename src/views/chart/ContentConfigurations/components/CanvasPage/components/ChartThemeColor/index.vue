@@ -9,28 +9,74 @@
       </n-text>
     </n-card>
 
-    <n-card
-      v-for="(value, key) in comChartColors"
-      :key="key"
-      class="card-box"
-      :class="{ selected: key === selectName }"
-      size="small"
-      hoverable
-      embedded
-      @click="selectTheme(key)"
-    >
-      <div class="go-flex-items-center">
-        <n-ellipsis style="text-align: left; width: 60px">{{ value.name }} </n-ellipsis>
-        <span
-          class="theme-color-item"
-          v-for="colorItem in fetchShowColors(value.color)"
-          :key="colorItem"
-          :style="{ backgroundColor: colorItem }"
-        ></span>
-      </div>
-      <div class="theme-bottom" :style="{ backgroundImage: colorBackgroundImage(value) }"></div>
-    </n-card>
-    <!-- Màu tùy chỉnh modal -->
+    <template v-for="custom in customThemes" :key="custom.key">
+      <n-card
+        class="card-box"
+        :class="{ selected: custom.key === selectName }"
+        size="small"
+        hoverable
+        embedded
+        @click="selectTheme(custom.key)"
+      >
+        <div class="go-flex-items-center">
+          <n-ellipsis style="text-align: left; width: 60px">{{ custom.value.name }}</n-ellipsis>
+          <span
+            class="theme-color-item"
+            v-for="colorItem in fetchShowColors(custom.value.color)"
+            :key="colorItem"
+            :style="{ backgroundColor: colorItem }"
+          ></span>
+        </div>
+        <div class="theme-bottom" :style="{ backgroundImage: colorBackgroundImage(custom.value) }"></div>
+      </n-card>
+    </template>
+
+    <n-text depth="3" class="section-label">Nền sáng</n-text>
+    <template v-for="item in lightThemes" :key="item.key">
+      <n-card
+        class="card-box"
+        :class="{ selected: item.key === selectName }"
+        size="small"
+        hoverable
+        embedded
+        @click="selectTheme(item.key)"
+      >
+        <div class="go-flex-items-center">
+          <n-ellipsis style="text-align: left; width: 110px">{{ item.label }}</n-ellipsis>
+          <span
+            class="theme-color-item"
+            v-for="colorItem in fetchShowColors(item.value.color)"
+            :key="colorItem"
+            :style="{ backgroundColor: colorItem }"
+          ></span>
+        </div>
+        <div class="theme-bottom" :style="{ backgroundImage: colorBackgroundImage(item.value) }"></div>
+      </n-card>
+    </template>
+
+    <n-text depth="3" class="section-label">Nền tối</n-text>
+    <template v-for="item in darkThemes" :key="item.key">
+      <n-card
+        class="card-box"
+        :class="{ selected: item.key === selectName }"
+        size="small"
+        hoverable
+        embedded
+        @click="selectTheme(item.key)"
+      >
+        <div class="go-flex-items-center">
+          <n-ellipsis style="text-align: left; width: 110px">{{ item.label }}</n-ellipsis>
+          <span
+            class="theme-color-item"
+            v-for="colorItem in fetchShowColors(item.value.color)"
+            :key="colorItem"
+            :style="{ backgroundColor: colorItem }"
+          ></span>
+        </div>
+        <div class="theme-bottom" :style="{ backgroundImage: colorBackgroundImage(item.value) }"></div>
+      </n-card>
+    </template>
+
     <create-color v-model:modelShow="createColorModelShow"></create-color>
   </div>
 </template>
@@ -40,60 +86,76 @@ import { ref, computed } from 'vue'
 import cloneDeep from 'lodash/cloneDeep'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { EditCanvasConfigEnum } from '@/store/modules/chartEditStore/chartEditStore.d'
-import { chartColors, ChartColorsNameType } from '@/settings/chartThemes/index'
+import { ChartColorsNameType } from '@/settings/chartThemes/index'
+import {
+  DARK_ECHARTS_THEMES,
+  LIGHT_ECHARTS_THEMES,
+  applyCanvasThemeMode,
+  getChartThemeDisplayName,
+  isDarkEchartsTheme
+} from '@/settings/chartThemes/themeRegistry'
 import { useDesignStore } from '@/store/modules/designStore/designStore'
 import { loadAsyncComponent, colorCustomMerge } from '@/utils'
 import { icon } from '@/plugins'
 
-type FormateCustomColorType = {
-  [T: string]: {
-    color: string[]
-    name: string
-  }
-}
-
 const CreateColor = loadAsyncComponent(() => import('../CreateColor/index.vue'))
 
-const { SquareIcon, AddIcon } = icon.ionicons5
+const { AddIcon } = icon.ionicons5
 const chartEditStore = useChartEditStore()
-
-// màu sắc toàn cầu
 const designStore = useDesignStore()
 const createColorModelShow = ref(false)
 
-// Hợp nhất các màu mặc định vàMàu tùy chỉnh
 const comChartColors = computed(() => {
   return colorCustomMerge(chartEditStore.getEditCanvasConfig.chartCustomThemeColorInfo)
 })
 
-// màu sắc
-const themeColor = computed(() => {
-  return designStore.getAppTheme
+const themeColor = computed(() => designStore.getAppTheme)
+
+const selectName = computed(() => chartEditStore.getEditCanvasConfig.chartThemeColor)
+
+const isBuiltInTheme = (key: string) => {
+  return DARK_ECHARTS_THEMES.includes(key as ChartColorsNameType) ||
+    LIGHT_ECHARTS_THEMES.includes(key as ChartColorsNameType)
+}
+
+const customThemes = computed(() => {
+  return Object.entries(comChartColors.value)
+    .filter(([key]) => !isBuiltInTheme(key))
+    .map(([key, value]) => ({ key: key as ChartColorsNameType, value }))
 })
 
-// tên đã chọn
-const selectName = computed(() => {
-  return chartEditStore.getEditCanvasConfig.chartThemeColor
+const lightThemes = computed(() => {
+  return LIGHT_ECHARTS_THEMES.filter(key => comChartColors.value[key]).map(key => ({
+    key,
+    label: getChartThemeDisplayName(key, comChartColors.value[key]?.name),
+    value: comChartColors.value[key]
+  }))
 })
 
-// tạo màu
+const darkThemes = computed(() => {
+  return DARK_ECHARTS_THEMES.filter(key => comChartColors.value[key]).map(key => ({
+    key,
+    label: getChartThemeDisplayName(key, comChartColors.value[key]?.name),
+    value: comChartColors.value[key]
+  }))
+})
+
 const createColorHandle = () => {
   createColorModelShow.value = true
 }
 
-// màu nền
 const colorBackgroundImage = (item: { color: string[] }) => {
   return `linear-gradient(to right, ${item.color[0]} 0%, ${item.color[5]} 100%)`
 }
 
-// Lấy số màu dùng để hiển thị
 const fetchShowColors = (colors: Array<string>) => {
   return cloneDeep(colors).splice(0, 6)
 }
 
-// Đặt màu cơ thể (trong ContentEdit > List tiêm)
 const selectTheme = (theme: ChartColorsNameType) => {
   chartEditStore.setEditCanvasConfig(EditCanvasConfigEnum.CHART_THEME_COLOR, theme)
+  const mode = isDarkEchartsTheme(theme) ? 'dark' : 'light'
+  applyCanvasThemeMode(chartEditStore, mode)
 }
 </script>
 
@@ -102,6 +164,14 @@ $radius: 10px;
 $itemRadius: 6px;
 
 @include go('chart-theme-color') {
+  .section-label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
   .card-box {
     cursor: pointer;
     margin-top: 15px;

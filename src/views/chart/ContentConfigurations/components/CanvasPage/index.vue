@@ -127,6 +127,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
+import debounce from 'lodash/debounce'
 import { backgroundImageSize } from '@/settings/designSetting'
 import { swatchesColors } from '@/settings/chartThemes/index'
 import { FileTypeEnum } from '@/enums/fileTypeEnum'
@@ -137,8 +138,9 @@ import { UploadCustomRequestOptions } from 'naive-ui'
 import { fileToUrl, loadAsyncComponent } from '@/utils'
 import { PreviewScaleEnum } from '@/enums/styleEnum'
 import { icon } from '@/plugins'
+import { syncCanvasThemeFromConfig } from '@/settings/chartThemes/themeRegistry'
 
-const { ColorPaletteIcon } = icon.ionicons5
+const { ColorPaletteIcon, ColorWandIcon } = icon.ionicons5
 const { ScaleIcon, FitToScreenIcon, FitToHeightIcon, FitToWidthIcon } = icon.carbon
 
 const chartEditStore = useChartEditStore()
@@ -150,6 +152,7 @@ const switchSelectColorLoading = ref(false)
 const selectColorValue = ref(0)
 
 const ChartThemeColor = loadAsyncComponent(() => import('./components/ChartThemeColor/index.vue'))
+const VChartThemeColor = loadAsyncComponent(() => import('./components/VChartThemeColor/index.vue'))
 
 // mặc địnhKiểu áp dụng
 const selectColorOptions = [
@@ -169,6 +172,12 @@ const globalTabList = [
     title: 'Màu Chủ Đề',
     icon: ColorPaletteIcon,
     render: ChartThemeColor
+  },
+  {
+    key: 'VChartTheme',
+    title: 'VChart Chủ Đề',
+    icon: ColorWandIcon,
+    render: VChartThemeColor
   }
 ]
 
@@ -206,6 +215,17 @@ watch(
   },
   {
     immediate: true
+  }
+)
+
+const syncThemeFromBackground = debounce(() => {
+  syncCanvasThemeFromConfig(chartEditStore, { syncTokensOnly: true })
+}, 300)
+
+watch(
+  () => canvasConfig.background,
+  () => {
+    syncThemeFromBackground()
   }
 )
 

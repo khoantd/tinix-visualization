@@ -48,6 +48,7 @@ import { useVCharts } from '@/hooks'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { EditCanvasConfigEnum } from '@/store/modules/chartEditStore/chartEditStore.d'
 import { useDesignStore } from '@/store/modules/designStore/designStore'
+import { applyCanvasThemeMode, isLightVChartTheme } from '@/settings/chartThemes/themeRegistry'
 
 const chartEditStore = useChartEditStore()
 const designStore = useDesignStore()
@@ -215,6 +216,8 @@ const industryList = ref<
 const selectThemeHandle = (item: { name: string; value: keyof typeof themeMap; colors: string[] }) => {
   vCharts.setTheme(item.value)
   chartEditStore.setEditCanvasConfig(EditCanvasConfigEnum.VCHART_THEME_NAME, item.value)
+  const mode = isLightVChartTheme(item.value) || item.value === 'light' ? 'light' : 'dark'
+  applyCanvasThemeMode(chartEditStore, mode)
 }
 </script>
 

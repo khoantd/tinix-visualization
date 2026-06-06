@@ -85,7 +85,15 @@ const paletteStyle = computed(() => {
         borderColor: '#18181c',
         cornerActiveColor: '#18181c'
       }
-    : {}
+    : {
+        bgColor: '#f5f5f5',
+        longfgColor: '#cccccc',
+        shortfgColor: '#cccccc',
+        fontColor: '#999999',
+        shadowColor: '#f5f5f5',
+        borderColor: '#e0e0e0',
+        cornerActiveColor: '#e0e0e0'
+      }
 })
 
 // Màu sắc
