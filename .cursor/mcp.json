@@ -14,6 +14,14 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?features=docs"
+    },
+    "tinix": {
+      "command": "node",
+      "args": ["packages/tinix-mcp/dist/index.js"],
+      "env": {
+        "TINIX_BASE_URL": "http://127.0.0.1:4000",
+        "TINIX_AGENT_API_KEY": ""
+      }
     }
   }
 }

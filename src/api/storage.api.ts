@@ -1,5 +1,17 @@
 import axios from './axios'
 
+export type HealthResponse = {
+  status: 'ok' | 'error'
+  features: 'core' | 'full'
+  database: 'neon' | 'sqlite' | 'unconfigured'
+  modules?: string[]
+}
+
+export const getHealthApi = async (): Promise<HealthResponse> => {
+  const res = await axios.get<HealthResponse>('/health')
+  return res.data
+}
+
 export const getProjectsApi = async () => {
   try {
     const res = await axios.get('/projects')
@@ -470,6 +482,26 @@ export const suggestChartsApi = async (confirmedSchema: any, provider?: AiProvid
   }
 }
 
+export interface AutoBiGeneratePayload {
+  datasetId: string
+  datasetName?: string
+  datasetContent?: unknown[]
+  projectName?: string
+  theme?: string
+  charts: unknown[]
+  executiveSummary?: string
+}
+
+export const generateDashboardApi = async (payload: AutoBiGeneratePayload) => {
+  try {
+    const res = await axios.post('/auto-bi/generate', payload)
+    return res.data as { success: boolean; dashboardId: string; project?: Record<string, unknown> }
+  } catch (err) {
+    console.error('Generate dashboard failed:', err)
+    return null
+  }
+}
+
 // APIs cho System Settings
 export const getGlobalSettingsApi = async (id: string = 'global') => {
   try {
@@ -638,5 +670,129 @@ export const mintEmbedPreviewTokenApi = async (dashboardId: string) => {
   } catch (err) {
     console.error('Mint embed preview token failed:', err)
     return null
+  }
+}
+
+// --- Agent API ---
+
+export type AgentScope =
+  | 'catalog:read'
+  | 'data:read'
+  | 'auto_bi'
+  | 'dashboard:write'
+  | 'dashboard:publish'
+  | 'embed:mint'
+
+export interface AgentApp {
+  id: string
+  name: string
+  scopes: AgentScope[]
+  allowedResourceIds?: Record<string, string[]> | null
+  createdAt?: string
+}
+
+export const getAgentConfigApi = async () => {
+  try {
+    const res = await axios.get('/agent/v1/config')
+    return res.data
+  } catch (err) {
+    console.error('Fetch agent config failed:', err)
+    return null
+  }
+}
+
+export const getAgentAppsApi = async (apiKey?: string) => {
+  try {
+    const headers = apiKey ? { 'X-Agent-Api-Key': apiKey } : {}
+    const res = await axios.get('/agent/v1/apps', { headers })
+    return res.data as AgentApp[]
+  } catch (err) {
+    console.error('Fetch agent apps failed:', err)
+    return []
+  }
+}
+
+export const createAgentAppApi = async (payload: {
+  name: string
+  scopes?: AgentScope[]
+  allowedResourceIds?: Record<string, string[]>
+}) => {
+  try {
+    const res = await axios.post('/agent/v1/apps', payload)
+    return res.data as AgentApp & { apiKey: string }
+  } catch (err) {
+    console.error('Create agent app failed:', err)
+    return null
+  }
+}
+
+export const updateAgentAppScopesApi = async (
+  appId: string,
+  scopes: AgentScope[],
+  allowedResourceIds?: Record<string, string[]>
+) => {
+  try {
+    const res = await axios.put(`/agent/v1/apps/${appId}/scopes`, { scopes, allowedResourceIds })
+    return res.data
+  } catch (err) {
+    console.error('Update agent scopes failed:', err)
+    return null
+  }
+}
+
+export const rotateAgentAppKeyApi = async (appId: string) => {
+  try {
+    const res = await axios.post(`/agent/v1/apps/${appId}/rotate`)
+    return res.data as { id: string; apiKey: string }
+  } catch (err) {
+    console.error('Rotate agent app key failed:', err)
+    return null
+  }
+}
+
+export const deleteAgentAppApi = async (appId: string) => {
+  try {
+    const res = await axios.delete(`/agent/v1/apps/${appId}`)
+    return res.data
+  } catch (err) {
+    console.error('Delete agent app failed:', err)
+    return null
+  }
+}
+
+export const mintAgentTokenApi = async (
+  apiKey: string,
+  payload?: { user?: { id?: string; email?: string }; scopes?: AgentScope[] }
+) => {
+  try {
+    const res = await axios.post('/agent/v1/token', payload || {}, {
+      headers: { 'X-Agent-Api-Key': apiKey },
+    })
+    return res.data as { token: string; expiresIn: number; scopes: AgentScope[] }
+  } catch (err) {
+    console.error('Mint agent token failed:', err)
+    throw err
+  }
+}
+
+export const getAgentAuditLogsApi = async (params?: { limit?: number; offset?: number; appId?: string }) => {
+  try {
+    const res = await axios.get('/agent/v1/audit', { params })
+    return res.data
+  } catch (err) {
+    console.error('Fetch agent audit logs failed:', err)
+    return []
+  }
+}
+
+export const testAgentConnectionApi = async (apiKey: string) => {
+  try {
+    const tokenRes = await mintAgentTokenApi(apiKey)
+    const res = await axios.get('/agent/v1/datasets', {
+      headers: { Authorization: `Bearer ${tokenRes.token}` },
+    })
+    return { ok: true, datasetCount: Array.isArray(res.data) ? res.data.length : 0, scopes: tokenRes.scopes }
+  } catch (err: any) {
+    return { ok: false, error: err?.response?.data?.message || err?.message || 'Connection failed' }
   }
 }

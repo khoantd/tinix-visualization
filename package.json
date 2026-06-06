@@ -13,7 +13,10 @@
     "lint": "eslint --ext .js,.jsx,.ts,.tsx,.vue src",
     "lint:fix": "eslint --ext .js,.jsx,.ts,.tsx,.vue src --fix",
     "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
+    "test:server": "node --test server/__tests__/*.test.js",
+    "migrate:neon": "node scripts/migrate-neon.js",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",

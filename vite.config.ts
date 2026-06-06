@@ -77,7 +77,7 @@ export default defineConfig({
       // Phát triển công tắc đóng gói
       localEnabled: true,
       // Công tắc đóng gói sản xuất
-      prodEnabled: true,
+      prodEnabled: false,
       // Sau khi mở, bạn có thể đọc ts Mô-đun tập tin. Xin lưu ý rằng việc giám sát sẽ không thể thực hiện được khi bật.js tài liệu
       supportTs: true,
       // Giám sát các thay đổi của tập tin

@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const db = require('./db');
+const db = require('./db/index');
 
 const TOKEN_TTL_SECONDS = parseInt(process.env.EMBED_TOKEN_TTL_SECONDS || '300', 10);
 
@@ -65,8 +65,8 @@ function generateAppId() {
   return `app_${crypto.randomBytes(8).toString('hex')}`;
 }
 
-function getEmbedAppById(id) {
-  const row = db.prepare('SELECT * FROM embed_apps WHERE id = ?').get(id);
+async function getEmbedAppById(id) {
+  const row = await db.queryOne('SELECT * FROM embed_apps WHERE id = ?', [id]);
   if (!row) return null;
   return {
     ...row,
@@ -74,9 +74,9 @@ function getEmbedAppById(id) {
   };
 }
 
-function getEmbedAppByApiKey(apiKey) {
+async function getEmbedAppByApiKey(apiKey) {
   const hash = hashApiKey(apiKey);
-  const row = db.prepare('SELECT * FROM embed_apps WHERE api_key_hash = ?').get(hash);
+  const row = await db.queryOne('SELECT * FROM embed_apps WHERE api_key_hash = ?', [hash]);
   if (!row) return null;
   return {
     ...row,
@@ -84,8 +84,10 @@ function getEmbedAppByApiKey(apiKey) {
   };
 }
 
-function listEmbedApps() {
-  const rows = db.prepare('SELECT id, name, allowed_origins, created_at FROM embed_apps ORDER BY created_at DESC').all();
+async function listEmbedApps() {
+  const rows = await db.queryAll(
+    'SELECT id, name, allowed_origins, created_at FROM embed_apps ORDER BY created_at DESC'
+  );
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -94,44 +96,48 @@ function listEmbedApps() {
   }));
 }
 
-function createEmbedApp({ name, allowedOrigins = [] }) {
+async function createEmbedApp({ name, allowedOrigins = [] }) {
   if (!name || !String(name).trim()) throw new Error('name is required');
   const id = generateAppId();
   const apiKey = generateApiKey();
   const origins = Array.isArray(allowedOrigins) ? allowedOrigins : [];
 
-  db.prepare(`
-    INSERT INTO embed_apps (id, name, api_key_hash, allowed_origins, created_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `).run(id, String(name).trim(), hashApiKey(apiKey), JSON.stringify(origins));
+  await db.execute(
+    `INSERT INTO embed_apps (id, name, api_key_hash, allowed_origins, created_at)
+     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [id, String(name).trim(), hashApiKey(apiKey), JSON.stringify(origins)]
+  );
 
   return { id, name: String(name).trim(), apiKey, allowedOrigins: origins };
 }
 
-function rotateEmbedAppKey(appId) {
-  const app = getEmbedAppById(appId);
+async function rotateEmbedAppKey(appId) {
+  const app = await getEmbedAppById(appId);
   if (!app) throw new Error('Embed app not found');
   const apiKey = generateApiKey();
-  db.prepare('UPDATE embed_apps SET api_key_hash = ? WHERE id = ?').run(hashApiKey(apiKey), appId);
+  await db.execute('UPDATE embed_apps SET api_key_hash = ? WHERE id = ?', [hashApiKey(apiKey), appId]);
   return { id: appId, apiKey };
 }
 
-function updateEmbedAppOrigins(appId, allowedOrigins) {
-  const app = getEmbedAppById(appId);
+async function updateEmbedAppOrigins(appId, allowedOrigins) {
+  const app = await getEmbedAppById(appId);
   if (!app) throw new Error('Embed app not found');
   const origins = Array.isArray(allowedOrigins) ? allowedOrigins : [];
-  db.prepare('UPDATE embed_apps SET allowed_origins = ? WHERE id = ?').run(JSON.stringify(origins), appId);
+  await db.execute('UPDATE embed_apps SET allowed_origins = ? WHERE id = ?', [
+    JSON.stringify(origins),
+    appId,
+  ]);
   return { id: appId, allowedOrigins: origins };
 }
 
-function getProjectConfig(projectId) {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+async function getProjectConfig(projectId) {
+  const project = await db.queryOne('SELECT * FROM projects WHERE id = ?', [projectId]);
   if (!project) return null;
   const config = JSON.parse(project.config);
   return { id: project.id, config, updatedAt: project.updated_at };
 }
 
-function extractDashboardScope(config) {
+async function extractDashboardScope(config) {
   const datasetIds = new Set();
   const connectorIds = new Set();
 
@@ -160,7 +166,7 @@ function extractDashboardScope(config) {
   }
 
   for (const dsId of datasetIds) {
-    const row = db.prepare('SELECT connector_id FROM datasets WHERE id = ?').get(dsId);
+    const row = await db.queryOne('SELECT connector_id FROM datasets WHERE id = ?', [dsId]);
     if (row?.connector_id) connectorIds.add(row.connector_id);
   }
 
@@ -180,8 +186,8 @@ function isOriginAllowed(app, origin) {
   });
 }
 
-function mintEmbedToken({ app, dashboardId, user, origin }) {
-  const project = getProjectConfig(dashboardId);
+async function mintEmbedToken({ app, dashboardId, user, origin }) {
+  const project = await getProjectConfig(dashboardId);
   if (!project) throw new Error('Dashboard not found');
 
   const config = project.config;
@@ -191,7 +197,7 @@ function mintEmbedToken({ app, dashboardId, user, origin }) {
     throw new Error('Origin is not allowed for this embed app');
   }
 
-  const scope = extractDashboardScope(config);
+  const scope = await extractDashboardScope(config);
   const userId = user?.id || user?.userId || 'anonymous';
   const email = user?.email || null;
   const roles = Array.isArray(user?.roles) ? user.roles : [];
@@ -213,11 +219,11 @@ function mintEmbedToken({ app, dashboardId, user, origin }) {
   };
 }
 
-function getPublishedDashboard(dashboardId, tokenPayload) {
+async function getPublishedDashboard(dashboardId, tokenPayload) {
   if (tokenPayload.dashboardId !== String(dashboardId)) {
     throw new Error('Token does not match requested dashboard');
   }
-  const project = getProjectConfig(dashboardId);
+  const project = await getProjectConfig(dashboardId);
   if (!project) throw new Error('Dashboard not found');
   if (!project.config.isPublished) throw new Error('Dashboard is not published');
   return {
@@ -227,20 +233,21 @@ function getPublishedDashboard(dashboardId, tokenPayload) {
   };
 }
 
-function unpublishDashboard(dashboardId) {
-  const project = getProjectConfig(dashboardId);
+async function unpublishDashboard(dashboardId) {
+  const project = await getProjectConfig(dashboardId);
   if (!project) throw new Error('Dashboard not found');
   const config = { ...project.config, isPublished: false };
   delete config.publishedAt;
   const configStr = JSON.stringify({ ...config, id: dashboardId });
-  db.prepare(`
-    UPDATE projects SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).run(configStr, dashboardId);
+  await db.execute(
+    'UPDATE projects SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [configStr, dashboardId]
+  );
   return { success: true, id: dashboardId, isPublished: false };
 }
 
-function publishDashboard(dashboardId, embedSettings = {}) {
-  const project = getProjectConfig(dashboardId);
+async function publishDashboard(dashboardId, embedSettings = {}) {
+  const project = await getProjectConfig(dashboardId);
   if (!project) throw new Error('Dashboard not found');
   const config = {
     ...project.config,
@@ -253,9 +260,10 @@ function publishDashboard(dashboardId, embedSettings = {}) {
     },
   };
   const configStr = JSON.stringify({ ...config, id: dashboardId });
-  db.prepare(`
-    UPDATE projects SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).run(configStr, dashboardId);
+  await db.execute(
+    'UPDATE projects SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [configStr, dashboardId]
+  );
   return { success: true, id: dashboardId, isPublished: true, publishedAt: config.publishedAt };
 }
 
@@ -296,4 +304,5 @@ module.exports = {
   assertEmbedConnectorAccess,
   parseBearerToken,
   isOriginAllowed,
+  getProjectConfig,
 };

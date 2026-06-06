@@ -1,0 +1,25 @@
+{
+  "name": "@tinix/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for TiniX Visualization Agent API",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "tinix-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

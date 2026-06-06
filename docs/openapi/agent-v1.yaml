@@ -1,0 +1,226 @@
+openapi: 3.1.0
+info:
+  title: TiniX Agent API
+  version: 1.0.0
+  description: Stable programmatic surface for AI agents to discover, query, analyze, and build dashboards.
+servers:
+  - url: http://127.0.0.1:4000/api/agent/v1
+    description: Local Express backend
+security:
+  - AgentBearer: []
+components:
+  securitySchemes:
+    AgentApiKey:
+      type: apiKey
+      in: header
+      name: X-Agent-Api-Key
+    AgentBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error_code, message]
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string
+        field:
+          type: string
+    AgentTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [token, expiresIn, scopes]
+      properties:
+        token:
+          type: string
+        expiresIn:
+          type: integer
+        scopes:
+          type: array
+          items:
+            type: string
+    DashboardSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        isPublished:
+          type: boolean
+        componentCount:
+          type: integer
+    GenerateDashboardRequest:
+      type: object
+      additionalProperties: false
+      required: [datasetId]
+      properties:
+        datasetId:
+          type: string
+        projectName:
+          type: string
+        theme:
+          type: string
+        charts:
+          type: array
+          items:
+            type: object
+        executiveSummary:
+          type: string
+        autoSuggest:
+          type: boolean
+paths:
+  /config:
+    get:
+      operationId: getAgentConfig
+      summary: Agent API configuration
+      security: []
+      responses:
+        '200':
+          description: Config
+  /token:
+    post:
+      operationId: mintAgentToken
+      summary: Mint short-lived agent JWT
+      security:
+        - AgentApiKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                user:
+                  type: object
+                scopes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Token minted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTokenResponse'
+  /dashboards:
+    get:
+      operationId: listDashboards
+      summary: List dashboard summaries
+      responses:
+        '200':
+          description: Dashboard list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DashboardSummary'
+  /dashboards/{id}:
+    get:
+      operationId: getDashboard
+      summary: Get dashboard metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: full
+          in: query
+          schema:
+            type: string
+            enum: ['1']
+      responses:
+        '200':
+          description: Dashboard
+  /datasets:
+    get:
+      operationId: listDatasets
+      summary: List datasets (metadata)
+      responses:
+        '200':
+          description: Datasets
+  /datasets/{id}/schema:
+    get:
+      operationId: getDatasetSchema
+      summary: Dataset schema and sample rows
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schema
+  /datasets/{id}/sample:
+    post:
+      operationId: sampleDataset
+      summary: Sample dataset rows (capped)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit:
+                  type: integer
+                  maximum: 200
+                offset:
+                  type: integer
+      responses:
+        '200':
+          description: Sample rows
+  /auto-bi/analyze:
+    post:
+      operationId: analyzeDataset
+      summary: Analyze dataset schema with AI
+      responses:
+        '200':
+          description: Analysis
+  /auto-bi/suggest:
+    post:
+      operationId: suggestCharts
+      summary: Suggest charts from confirmed schema
+      responses:
+        '200':
+          description: Suggestions
+  /auto-bi/generate:
+    post:
+      operationId: generateDashboard
+      summary: Full pipeline — analyze, suggest, build, save
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateDashboardRequest'
+      responses:
+        '200':
+          description: Dashboard created
+  /dashboards/{id}/publish:
+    post:
+      operationId: publishDashboard
+      summary: Publish dashboard for embed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Published

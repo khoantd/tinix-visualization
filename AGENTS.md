@@ -231,6 +231,26 @@ Embed published dashboards in external web apps with short-lived JWTs (Metabase/
 
 Embed tokens scope dataset/connector reads to resources referenced by the published dashboard config.
 
+### Runtime AI agents (Agent API + MCP)
+
+Let external AI agents operate TiniX programmatically (distinct from dev-agent docs in this file).
+
+- **Backend:** `server/agent.service.js` — scoped API keys, JWT mint/verify, audit log; `server/agent.routes.js` — `/api/agent/v1/*`; `server/dashboard.builder.js` — shared dashboard generation (also used by Auto-BI UI).
+- **Routes:** `POST /api/agent/v1/token` (API key), catalog/data/auto-bi/builder/publish endpoints (Bearer JWT). UI shortcut: `POST /api/auto-bi/generate` (local, no agent auth).
+- **MCP:** `packages/tinix-mcp` — curated tools (`tinix_list_datasets`, `tinix_generate_dashboard`, …); register in `.cursor/mcp.json`.
+- **Admin UI:** `src/views/project/dataManagement/components/AgentHub.vue` — Data Management → **AI Agent Integration**.
+- **OpenAPI:** `docs/openapi/agent-v1.yaml`
+- **Guide:** [docs/agent-integration.md](docs/agent-integration.md)
+
+**Agent integration flow:**
+
+1. Create agent app in Data Management → copy `tag_…` key to backend/MCP env.
+2. Mint JWT via `POST /api/agent/v1/token` with `X-Agent-Api-Key`.
+3. Call Agent API or MCP tools with `Authorization: Bearer <jwt>`.
+4. Optional: `tinix_publish_dashboard` + embed flow for read-only viewers.
+
+Default scopes: `catalog:read` + `data:read`. Builder agents need `auto_bi` + `dashboard:write`.
+
 ### Persist a new entity
 
 1. Add table in `server/db.js` (`CREATE TABLE IF NOT EXISTS …`).
@@ -270,5 +290,7 @@ Follow the phase order in [`.cursor/CURSOR.md`](.cursor/CURSOR.md):
 | Preview without editor session | `src/views/preview/utils/storage.ts` |
 | Authenticated embed viewer | `src/views/embed/` |
 | Embed admin panel | `src/components/EmbedPanel/index.vue` |
+| AI agent admin | `src/views/project/dataManagement/components/AgentHub.vue` |
+| Agent API / MCP | `server/agent.routes.js`, `packages/tinix-mcp/` |
 | Template market | `src/views/project/templateMarket/` |
 | Global themes | `src/settings/chartThemes/` |

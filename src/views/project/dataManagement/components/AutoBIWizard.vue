@@ -23,6 +23,14 @@
         </n-space>
       </n-space>
       <n-divider style="margin: 15px 0" />
+      <n-alert
+        v-if="featureUnavailable"
+        type="warning"
+        :title="t('features.feature_unavailable_title')"
+        style="margin-bottom: 12px"
+      >
+        {{ t('features.feature_unavailable_desc') }}
+      </n-alert>
       <n-steps :current="currentStep" :status="currentStatus" size="small">
         <n-step title="Phân tích dữ liệu" description="AI nhận diện Schema" />
         <n-step title="Chọn biểu đồ" description="Gợi ý từ AI" />
@@ -139,6 +147,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, h, computed, toRaw } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { 
   NButton, NSpace, NDataTable, NTag, NH2, NH4, NH5, NDivider, NSteps, NStep,
   NGrid, NGridItem, NCard, NCheckbox, NText, NInput, NFormItem, NAlert, NIcon,
@@ -146,17 +155,19 @@ import {
 } from 'naive-ui'
 import { icon } from '@/plugins'
 import axios from 'axios'
-import { getUUID, fetchPathByName, routerTurnByPath } from '@/utils'
+import { fetchPathByName, routerTurnByPath } from '@/utils'
 import { ChartEnum } from '@/enums/pageEnum'
-import { saveProjectApi, saveDatasetApi, analyzeDatasetApi, suggestChartsApi, getAutoBiProvidersApi, type AiProviderId } from '@/api/storage.api'
+import { saveDatasetApi, analyzeDatasetApi, suggestChartsApi, generateDashboardApi, getAutoBiProvidersApi, type AiProviderId } from '@/api/storage.api'
 
 const props = defineProps({
   dataset: Object
 })
 
 const emit = defineEmits(['back', 'complete'])
+const { t } = useI18n()
 const { ArrowBackIcon, FlashIcon } = icon.ionicons5
 const message = useMessage()
+const featureUnavailable = ref(false)
 
 const currentStep = ref(1)
 const currentStatus = ref<'process' | 'error' | 'finish' | 'wait'>('process')
@@ -167,7 +178,10 @@ const activeProviderLabel = ref('')
 
 const loadActiveProvider = async () => {
   const data = await getAutoBiProvidersApi()
-  if (!data) return
+  if (!data) {
+    featureUnavailable.value = true
+    return
+  }
   const resolved = data.activeProvider || data.defaultProvider
   activeProvider.value = resolved
   const match = data.providers.find(p => p.id === resolved)
@@ -205,53 +219,6 @@ const themeOptions = [
 
 const selectedCharts = computed<ChartSuggestion[]>(() => suggestedCharts.value.filter(c => c.selected))
 const selectedChartsCount = computed(() => selectedCharts.value.length)
-
-// --- MAPPING LOGIC (FIXED KEYS) ---
-const chartKeyMap: any = {
-  'Bar': { key: 'BarCommon', chartKey: 'VBarCommon', conKey: 'VCBarCommon', package: 'Charts', category: 'Bars', categoryName: 'Biểu đồ thanh', chartFrame: 'echarts' },
-  'Line': { key: 'LineCommon', chartKey: 'VLineCommon', conKey: 'VCLineCommon', package: 'Charts', category: 'Lines', categoryName: 'Biểu đồ đường', chartFrame: 'echarts' },
-  'Pie': { key: 'PieCommon', chartKey: 'VPieCommon', conKey: 'VCPieCommon', package: 'Charts', category: 'Pies', categoryName: 'Biểu đồ hình tròn', chartFrame: 'echarts' },
-  'Map': { key: 'MapBase', chartKey: 'VMapBase', conKey: 'VCMapBase', package: 'Charts', category: 'Maps', categoryName: 'Bản đồ', chartFrame: 'echarts' },
-  'Radar': { key: 'Radar', chartKey: 'VRadar', conKey: 'VCRadar', package: 'Charts', category: 'Mores', categoryName: 'Khác', chartFrame: 'echarts' },
-  'Funnel': { key: 'Funnel', chartKey: 'VFunnel', conKey: 'VCFunnel', package: 'Charts', category: 'Mores', categoryName: 'Khác', chartFrame: 'echarts' },
-  'Heatmap': { key: 'Heatmap', chartKey: 'VHeatmap', conKey: 'VCHeatmap', package: 'Charts', category: 'Mores', categoryName: 'Khác', chartFrame: 'echarts' },
-  'TreeMap': { key: 'TreeMap', chartKey: 'VTreeMap', conKey: 'VCTreeMap', package: 'Charts', category: 'Mores', categoryName: 'Khác', chartFrame: 'echarts' },
-  'Scatter': { key: 'ScatterCommon', chartKey: 'VScatterCommon', conKey: 'VCScatterCommon', package: 'Charts', category: 'Scatters', categoryName: 'Phân tán', chartFrame: 'echarts' },
-  'Table': { key: 'TableList', chartKey: 'VTableList', conKey: 'VCTableList', package: 'Tables', category: 'Tables', categoryName: 'Bảng', chartFrame: 'common' }
-}
-
-const detectMapRegion = (source: any[], xField: string) => {
-  if (!Array.isArray(source) || source.length === 0) return 'world'
-  const sample = source.slice(0, 30).map(row => String(row[xField] || '').toLowerCase())
-  const vnKeywords = ['việt nam', 'vietnam', 'hà nội', 'hồ chí minh', 'đà nẵng', 'hải phòng', 'vũng tàu']
-  const cnKeywords = ['china', 'trung quốc', 'beijing', 'shanghai', 'guangzhou', 'shenzhen']
-  if (sample.some(v => vnKeywords.some(kw => v.includes(kw)))) return 'vietnam'
-  if (sample.some(v => cnKeywords.some(kw => v.includes(kw)))) return 'china'
-  if (sample.some(v => /[\u4e00-\u9fa5]/.test(v))) return 'china'
-  return 'world'
-}
-
-const normalizeMapName = (name: string) => {
-  const n = String(name || '').toLowerCase().trim()
-  const map: Record<string, string> = {
-    'mỹ': 'United States', 'usa': 'United States', 'hoa kỳ': 'United States',
-    'anh': 'United Kingdom', 'uk': 'United Kingdom',
-    'đức': 'Germany', 'pháp': 'France', 'ý': 'Italy', 'tây ban nha': 'Spain',
-    'nhật bản': 'Japan', 'hàn quốc': 'Korea', 'trung quốc': 'China',
-    'nga': 'Russia', 'ấn độ': 'India', 'brazil': 'Brazil', 'úc': 'Australia',
-    'canada': 'Canada', 'việt nam': 'Vietnam', 'singapore': 'Singapore', 'thái lan': 'Thailand'
-  }
-  return map[n] || name
-}
-
-const getThematicThumbnail = (charts: ChartSuggestion[]) => {
-  if (charts.some(c => c.chartType === 'Map')) return 'project/autobi_map.png'
-  if (charts.some(c => c.chartType === 'Radar' || c.chartType === 'Funnel')) return 'project/autobi_marketing.png'
-  // Check first chart or titles
-  const first = charts[0]
-  if (first?.title?.toLowerCase().includes('doanh thu') || first?.title?.toLowerCase().includes('revenue')) return 'project/autobi_finance.png'
-  return 'project/autobi_generic.png'
-}
 
 onMounted(async () => {
   await loadActiveProvider()
@@ -298,7 +265,10 @@ const startAnalysis = async (force = false) => {
   try {
     const sample = props.dataset?.content?.slice(0, 15) || []
     const res = await analyzeDatasetApi(sample, activeProvider.value ?? undefined)
-    
+    if (!res && featureUnavailable.value) {
+      throw new Error('feature disabled')
+    }
+
     // Ánh xạ phòng thủ cao: Kiểm tra nhiều loại key có thể có
     let rawColumns = res?.columns || res?.data?.columns || []
     
@@ -379,21 +349,6 @@ const handleNext = async () => {
   }
 }
 
-const aggregateData = (source: any[], xField: string, yField: string, limit = 15) => {
-  if (!Array.isArray(source) || source.length === 0) return []
-  const map = new Map<string, number>()
-  source.forEach(row => {
-    const key = String(row[xField] || 'N/A')
-    const rawVal = row[yField] || 0
-    const val = Number(String(rawVal).replace(/[^0-9.-]+/g,"")) || 0
-    map.set(key, (map.get(key) || 0) + val)
-  })
-  return Array.from(map.entries())
-    .map(([k, v]) => ({ [xField]: k, [yField]: Math.round(v * 100) / 100 }))
-    .sort((a: any, b: any) => b[yField] - a[yField])
-    .slice(0, limit)
-}
-
 const handleGenerate = async () => {
   const datasetId = props.dataset?.id || ''
   if (!datasetId || datasetId === 'undefined') {
@@ -403,182 +358,25 @@ const handleGenerate = async () => {
 
   loading.value = true
   try {
-    // --- BƯỚC 0: SYNC DỮ LIỆU LÊN SERVER (TRÁNH LỖI 404) ---
     await saveDatasetApi(toRaw(props.dataset))
 
-    const projectId = getUUID()
-    const charts = selectedCharts.value
-    const pondId = `POND_${props.dataset?.id || getUUID()}`
-    const datasetId = props.dataset?.id || ''
-    
-    // --- DYNAMIC GRID CALCULATOR ---
-    const CANVAS_WIDTH = 1920
-    const GRID_UNIT = CANVAS_WIDTH / 12 // 160px per unit
-    let currentX = 0
-    let currentY = 0
-    let lastRowMaxHeight = 0
-    
-    const componentList: any[] = []
-    
-    // 1. ADD EXECUTIVE SUMMARY (NARRATIVE)
-    if (executiveSummary.value) {
-      const summaryHeight = 180
-      componentList.push({
-        id: getUUID(),
-        key: 'TextCommon',
-        isGroup: false,
-        attr: { x: 0, y: 0, w: CANVAS_WIDTH, h: summaryHeight, zIndex: 1, offsetX: 0, offsetY: 0 },
-        styles: { filterShow: false, opacity: 1, rotateZ: 0, blendMode: 'normal', animations: [] },
-        status: { lock: false, hide: false },
-        chartConfig: { key: 'TextCommon', chartKey: 'VTextCommon', conKey: 'VCTextCommon', package: 'Informations', category: 'Texts', categoryName: 'Văn bản', title: 'Tóm tắt phân tích' },
-        option: {
-          dataset: executiveSummary.value,
-          fontSize: 22,
-          fontColor: '#fff',
-          fontWeight: 'bold',
-          textAlign: 'center',
-          writingMode: 'horizontal-tb'
-        }
-      })
-      currentY = summaryHeight + 20
-    }
-
-    // 2. ADD CHARTS WITH SMART LAYOUT
-    charts.forEach((suggest, index) => {
-      const mapping = chartKeyMap[suggest.chartType] || chartKeyMap['Bar']
-      const isEcharts = mapping.chartFrame === 'echarts'
-      
-      // Determine Dimensions
-      const wUnits = Number(suggest.w || 4) // AI usually suggests 4, 6, 12
-      const w = wUnits * GRID_UNIT
-      const h = Number(suggest.h || 400)
-      
-      // Wrapping Logic
-      if (currentX + w > CANVAS_WIDTH) {
-        currentX = 0
-        currentY += lastRowMaxHeight + 20
-        lastRowMaxHeight = 0
-      }
-      
-      const x = currentX
-      const y = currentY
-      
-      currentX += w
-      lastRowMaxHeight = Math.max(lastRowMaxHeight, h)
-
-      // --- DATA PREPARATION ---
-      const rawContent = Array.isArray(props.dataset?.content) ? props.dataset.content : []
-      const xField = suggest.mapping?.x || ''
-      const yField = suggest.mapping?.y || ''
-      const aggregatedSource = aggregateData(rawContent, xField, yField, 15)
-      
-      let filterStr = ''
-      if (suggest.chartType === 'Scatter') {
-         filterStr = `// @tinix-transform:${JSON.stringify({ x: xField, y: yField, type: 'raw', limit: 1000, sort: 'none' })}\nif (!data || !Array.isArray(data)) return [];\nreturn [{ dimensions: ["${xField}", "${yField}"], source: data.map(i => ({ ["${xField}"]: Number(i["${xField}"]) || 0, ["${yField}"]: Number(i["${yField}"]) || 0 })) }];`
-      } else {
-         const isVirtual = (suggest as any).virtual === true
-         // Dự phòng công thức: Nếu AI gợi ý virtual mà ko có formula, dùng cột yField làm gốc
-         const rawFormula = (suggest as any).formula || ''
-         const formula = isVirtual && !rawFormula ? `row["${yField}"]` : rawFormula
-         
-         const transformMeta = { x: xField, y: yField, type: isVirtual ? 'virtual' : 'sum', formula, limit: 15, sort: 'desc' }
-         
-         if (isVirtual && formula) {
-           filterStr = `// @tinix-transform:${JSON.stringify(transformMeta)}\nif (!data || !Array.isArray(data)) return [];\nconst x = "${xField}", y = "${yField}", map = new Map();\ndata.forEach(row => { \n  const k = String(row[x] || 'N/A'); \n  let v = 0;\n  try { v = Number(${formula}) || 0; } catch(e) { v = 0; }\n  map.set(k, (map.get(k) || 0) + v); \n});\nconst source = Array.from(map.entries()).map(([k, v]) => ({ [x]: k, [y]: Math.round(v * 100) / 100 })).sort((a, b) => b[y] - a[y]).slice(0, 15);\nreturn [{ dimensions: [x, y], source }];`
-         } else {
-           filterStr = `// @tinix-transform:${JSON.stringify(transformMeta)}\nif (!data || !Array.isArray(data)) return [];\nconst x = "${xField}", y = "${yField}", map = new Map();\ndata.forEach(row => { const k = String(row[x] || 'N/A'), v = Number(String(row[y] || 0).replace(/[^0-9.-]+/g,"")) || 0; map.set(k, (map.get(k) || 0) + v); });\nconst source = Array.from(map.entries()).map(([k, v]) => ({ [x]: k, [y]: Math.round(v * 100) / 100 })).sort((a, b) => b[y] - a[y]).slice(0, 15);\nreturn [{ dimensions: [x, y], source }];`
-         }
-      }
-      
-      let option: any = {}
-      if (isEcharts) {
-        option.dataset = { dimensions: [xField, yField], source: aggregatedSource }
-        const seriesType = mapping.category === 'Lines' ? 'line' : mapping.category === 'Pies' ? 'pie' : mapping.category === 'Maps' ? 'map' : 'bar'
-        
-        if (seriesType === 'pie') {
-          option.series = [{ type: 'pie', radius: ['30%', '50%'], center: ['50%', '57%'], label: { show: true, formatter: '{b}: {d}%', fontSize: 10 }, encode: { itemName: xField, value: yField } }]
-        } else if (seriesType === 'map') {
-          const adcode = detectMapRegion(rawContent, xField)
-          option.mapRegion = { adcode }; option.geo = { map: adcode, show: false }
-          option.dataset = { map: aggregatedSource.map((i: any) => ({ name: adcode === 'world' ? normalizeMapName(i[xField]) : i[xField], value: i[yField] })) }
-          option.visualMap = { show: true, min: 0, max: Math.max(...aggregatedSource.map((i:any) => i[yField] || 0)) || 100, inRange: { color: ['#e0ffff', '#006edd'] } }
-          option.series = [{ type: 'effectScatter', coordinateSystem: 'geo', data: [] }, { type: 'map', map: adcode, encode: { value: 'value' } }]
-        } else if (suggest.chartType === 'Radar') {
-          const vals = aggregatedSource.map((i:any) => i[yField] || 0); const maxVal = Math.max(...vals) || 100
-          option.radar = { indicator: aggregatedSource.map((i:any) => ({ name: String(i[xField] || ''), max: maxVal * 1.2 })), shape: 'polygon' }
-          option.series = [{ type: 'radar', label: { show: true, fontSize: 10 }, data: [{ value: vals, name: suggest.title }] }]
-        } else if (suggest.chartType === 'Scatter') {
-          option.tooltip = { trigger: 'item', formatter: `X: {@[0]}<br/>Y: {@[1]}` }
-          option.series = [{ type: 'scatter', encode: { x: xField, y: yField } }]
-          option.xAxis = { type: 'value', scale: true }; option.yAxis = { type: 'value', scale: true }
-        } else {
-          option.series = [{ type: seriesType, label: { show: true, position: 'top', fontSize: 10, color: '#eee' }, encode: { x: xField, y: yField } }]
-          if ((seriesType as any) !== 'treemap') {
-            option.xAxis = { type: 'category', axisLabel: { rotate: aggregatedSource.length > 5 ? 45 : 0, interval: 0, fontSize: 10 } }
-            option.yAxis = { type: 'value' }
-          }
-        }
-      } else {
-        option.dataset = (mapping.key === 'TableList') ? aggregatedSource.map((row: any) => ({ name: String(row[xField] || ''), value: Number(row[yField]) || 0 })) : aggregatedSource
-      }
-
-      componentList.push({
-        id: getUUID(),
-        key: mapping.key,
-        isGroup: false,
-        attr: { x, y, w, h, zIndex: index + 2, offsetX: 0, offsetY: 0 },
-        filter: filterStr,
-        styles: { filterShow: false, opacity: 1, rotateZ: 0, blendMode: 'normal', animations: [] },
-        status: { lock: false, hide: false },
-        events: { baseEvent: {}, advancedEvents: {}, interactEvents: [] },
-        chartConfig: { ...mapping, title: suggest.title },
-        option: option,
-        request: {
-          requestDataType: 2, requestHttpType: 'get', requestUrl: `/datasets/${datasetId}`,
-          requestDataPondId: pondId, requestContentType: 0, requestParamsBodyType: 'none',
-          requestInterval: 30, requestIntervalUnit: 'second', requestParams: { Params: {}, Body: {}, Header: {} }
-        }
-      })
+    const result = await generateDashboardApi({
+      datasetId,
+      datasetName: props.dataset?.name,
+      datasetContent: Array.isArray(props.dataset?.content) ? props.dataset.content : [],
+      projectName: projectName.value,
+      theme: projectTheme.value,
+      charts: selectedCharts.value,
+      executiveSummary: executiveSummary.value,
     })
 
-    const dynamicCanvasHeight = Math.max(1080, currentY + lastRowMaxHeight + 100)
-
-    const newProject: any = {
-      id: projectId,
-      title: projectName.value,
-      image: getThematicThumbnail(charts),
-      index: 0,
-      editCanvasConfig: {
-        projectName: projectName.value,
-        width: CANVAS_WIDTH,
-        height: dynamicCanvasHeight,
-        chartThemeColor: projectTheme.value,
-        previewScaleType: 'fit',
-        selectColor: true
-      },
-      requestGlobalConfig: {
-        requestInterval: 30,
-        requestIntervalUnit: 'second',
-        requestParams: { Params: {}, Body: {}, Header: {} },
-        requestDataPond: [{
-          dataPondId: pondId,
-          dataPondName: props.dataset?.name || 'Dataset',
-          dataPondRequestConfig: {
-            requestDataType: 1, requestHttpType: 'get', requestUrl: `/datasets/${datasetId}`,
-            requestContentType: 0, requestParamsBodyType: 'none', requestInterval: 30,
-            requestIntervalUnit: 'second', requestParams: { Params: {}, Body: {}, Header: {} }
-          }
-        }]
-      },
-      componentList
+    if (!result?.dashboardId) {
+      throw new Error('Generate failed')
     }
 
-    await saveProjectApi(newProject)
     message.success('Dashboard đã được khởi tạo thành công!')
-    
-    // Chuyển đến không gian thiết kế trực quan (ChartHome), KHÔNG PHẢI JSON editor
     const path = fetchPathByName(ChartEnum.CHART_HOME_NAME, 'href')
-    routerTurnByPath(path, [projectId], undefined, true)
+    routerTurnByPath(path, [result.dashboardId], undefined, true)
   } catch (err) {
     message.error('Lỗi khi sinh dự án.')
   } finally {

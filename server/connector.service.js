@@ -2,7 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const { Client: PgClient } = require('pg');
 const mysql = require('mysql2/promise');
-const Database = require('better-sqlite3');
 const { validateEngine, getEngine } = require('./connector.config');
 const { decryptPassword } = require('./connector.crypto');
 const graphqlConnector = require('./graphql.connector');
@@ -113,6 +112,7 @@ async function connectMysql(config) {
 }
 
 function connectSqlite(config) {
+  const Database = require('better-sqlite3');
   const filePath = path.resolve(config.filePath);
   if (!fs.existsSync(filePath)) {
     throw new Error(`SQLite file not found: ${filePath}`);

@@ -7,6 +7,8 @@ import edit from './edit'
 import packages from './packages'
 import views_components from './views_components'
 import embed from './embed'
+import agent from './agent'
+import features from './features'
 
 const global = {
   ...global_extra,
@@ -48,4 +50,6 @@ export default {
   packages,
   views_components,
   embed,
+  agent,
+  features,
 }

@@ -16,6 +16,14 @@
     <div v-if="step === 1">
       <n-spin :show="enginesLoading">
         <n-alert
+          v-if="hideSqliteEngine"
+          type="warning"
+          role="alert"
+          style="margin-bottom: 12px"
+        >
+          {{ t('features.sqlite_local_only_warning') }}
+        </n-alert>
+        <n-alert
           v-if="enginesError"
           type="warning"
           role="alert"
@@ -30,7 +38,7 @@
         </n-alert>
         <div class="engine-grid" role="radiogroup" aria-label="Chọn loại kết nối dữ liệu">
           <button
-            v-for="eng in engines"
+            v-for="eng in displayEngines"
             :key="eng.id"
             type="button"
             class="engine-card"
@@ -39,7 +47,12 @@
             :aria-checked="selectedEngine === eng.id"
             @click="selectedEngine = eng.id"
           >
-            <span v-if="selectedEngine === eng.id" class="engine-check" aria-hidden="true">✓</span>
+            <n-icon
+              v-if="selectedEngine === eng.id"
+              class="engine-check"
+              :component="CheckmarkIcon"
+              aria-hidden="true"
+            />
             <span class="engine-label">{{ eng.label }}</span>
             <span class="engine-port">
               {{ engineSubtitle(eng) }}
@@ -113,9 +126,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { icon } from '@/plugins'
+import { useTinixFeatures } from '@/hooks/useTinixFeatures'
 import {
   NModal, NSteps, NStep, NFormItem, NInput, NButton, NSpace,
-  NAlert, NSpin, NDescriptions, NDescriptionsItem, useMessage,
+  NAlert, NSpin, NDescriptions, NDescriptionsItem, NIcon, useMessage,
 } from 'naive-ui'
 import { getUUID } from '@/utils'
 import { CONNECTOR_ENGINES } from '@/constants/connectorEngines'
@@ -141,7 +157,16 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+const { t } = useI18n()
+const { isServerless } = useTinixFeatures()
+const { CheckmarkIcon } = icon.ionicons5
 const message = useMessage()
+
+const hideSqliteEngine = computed(() => isServerless.value)
+const displayEngines = computed(() =>
+  hideSqliteEngine.value ? engines.value.filter(e => e.id !== 'sqlite') : engines.value
+)
+
 const visible = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v),
@@ -234,9 +259,15 @@ async function loadEngines() {
     const fromApi = await getConnectorEnginesApi()
     if (fromApi && fromApi.length > 0) {
       engines.value = fromApi
+    } else {
+      engines.value = [...CONNECTOR_ENGINES]
+    }
+    if (hideSqliteEngine.value && selectedEngine.value === 'sqlite') {
+      selectedEngine.value = 'postgres'
+    }
+    if (fromApi && fromApi.length > 0) {
       return
     }
-    engines.value = [...CONNECTOR_ENGINES]
     usingFallback.value = true
     enginesError.value =
       'Không tải được danh sách engine từ server. Đang dùng danh sách cục bộ. Kiểm tra backend (port 4000) và thử lại.'

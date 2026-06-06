@@ -7,7 +7,13 @@
     @after-leave="handleClose"
   >
     <n-drawer-content :title="t('embed.embed_title')" closable>
-      <n-tabs v-model:value="activeTab" type="line" animated class="embed-tabs">
+      <n-result
+        v-if="!embedEnabled"
+        status="info"
+        :title="t('features.feature_unavailable_title')"
+        :description="t('features.feature_unavailable_desc')"
+      />
+      <n-tabs v-else v-model:value="activeTab" type="line" animated class="embed-tabs">
         <!-- Status -->
         <n-tab-pane name="status" :tab="t('embed.embed_tab_status')">
           <n-space vertical :size="16">
@@ -163,6 +169,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTinixFeatures } from '@/hooks/useTinixFeatures'
 import TinixEmbed from '@/components/TinixEmbed.vue'
 import {
   getEmbedAppsApi,
@@ -187,6 +194,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { hasModule } = useTinixFeatures()
+const embedEnabled = computed(() => hasModule('embed'))
 
 const visible = computed({
   get: () => props.show,

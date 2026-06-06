@@ -31,6 +31,15 @@ TiniX không chỉ là công cụ vẽ biểu đồ, mà là một cộng sự p
 
 - **Virtual Metrics:** AI có khả năng tự đề xuất các công thức tính toán mới dựa trên dữ liệu hiện có (ví dụ: Tỷ lệ chuyển đổi, Tăng trưởng doanh thu) và nhúng trực tiếp vào biểu đồ.
 
+### 1b. 🤝 AI Agent API & MCP (Programmatic Access)
+
+External AI agents (Cursor, Claude Desktop, custom backends) can operate TiniX via a scoped Agent API and MCP server:
+
+- **Agent API:** `/api/agent/v1/*` — discover datasets, run Auto-BI, build and publish dashboards
+- **MCP server:** `packages/tinix-mcp` — curated tools for Cursor and compatible clients
+- **Admin UI:** Data Management → **AI Agent Integration**
+- **Docs:** [docs/agent-integration.md](docs/agent-integration.md)
+
 ### 2. 🏪 Chợ Mẫu (Template Market) - *Mới ở v0.2*
 
 TiniX v0.2 ra mắt kho tàng Dashboard mẫu chuyên sâu cho đa dạng lĩnh vực:
@@ -173,6 +182,12 @@ Hệ thống cần cấu hình ít nhất một AI provider để chạy tính n
 # Chạy đồng thời Frontend (cổng 3020) và Backend (cổng 4000)
 npm run dev:all
 ```
+
+### Deploy on Vercel (core features + Neon)
+
+For cloud deployment with **Neon PostgreSQL**, see [docs/vercel-deployment.md](docs/vercel-deployment.md). Set `DATABASE_URL`, `TINIX_FEATURES=core`, and deploy from the repo root.
+
+To enable **Auto-BI, connectors, embed, and Agent API** on Vercel, see [docs/vercel-deployment-phase2.md](docs/vercel-deployment-phase2.md).
 
 ---
 

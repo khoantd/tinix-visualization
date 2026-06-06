@@ -10,7 +10,18 @@
             </n-text>
           </div>
           <n-space>
-            <n-button secondary @click="showAiSettings = true">
+            <n-tooltip v-if="!autoBiEnabled" trigger="hover">
+              <template #trigger>
+                <n-button secondary disabled>
+                  <template #icon>
+                    <n-icon :component="SettingsSharpIcon" />
+                  </template>
+                  Cấu hình AI
+                </n-button>
+              </template>
+              {{ t('features.auto_bi_disabled_tooltip') }}
+            </n-tooltip>
+            <n-button v-else secondary @click="showAiSettings = true">
               <template #icon>
                 <n-icon :component="SettingsSharpIcon" />
               </template>
@@ -89,7 +100,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h, reactive } from 'vue'
+import { ref, onMounted, h, reactive, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useTinixFeatures } from '@/hooks/useTinixFeatures'
 import { icon } from '@/plugins'
 import {
   getDatasetsApi,
@@ -102,7 +115,7 @@ import {
 } from '@/api/storage.api'
 import {
   NButton, NSpace, NTag, useDialog, useMessage, NDataTable, NDivider,
-  NUpload, NIcon, NModal, NText,
+  NUpload, NIcon, NModal, NText, NTooltip,
 } from 'naive-ui'
 import { getUUID } from '@/utils'
 import * as XLSX from 'xlsx'
@@ -110,6 +123,9 @@ import AutoBIWizard from './AutoBIWizard.vue'
 import AiProviderSettings from './AiProviderSettings.vue'
 
 const { ShareIcon, TrashIcon, ArrowBackIcon, FlashIcon, SettingsSharpIcon, RefreshIcon } = icon.ionicons5
+const { t } = useI18n()
+const { hasModule } = useTinixFeatures()
+const autoBiEnabled = computed(() => hasModule('auto-bi'))
 const message = useMessage()
 const dialog = useDialog()
 
@@ -175,8 +191,8 @@ const columns = [
     key: 'actions',
     width: 300,
     render(row: DatasetRecord) {
-      const actions = [
-        h(NButton, {
+      const autoBiBtn = autoBiEnabled.value
+        ? h(NButton, {
           size: 'small',
           type: 'primary',
           ghost: true,
@@ -187,7 +203,22 @@ const columns = [
         }, {
           default: () => 'Auto-BI',
           icon: () => h(NIcon, null, { default: () => h(FlashIcon) }),
-        }),
+        })
+        : h(NTooltip, { trigger: 'hover' }, {
+          trigger: () => h(NButton, {
+            size: 'small',
+            type: 'primary',
+            ghost: true,
+            disabled: true,
+          }, {
+            default: () => 'Auto-BI',
+            icon: () => h(NIcon, null, { default: () => h(FlashIcon) }),
+          }),
+          default: () => t('features.auto_bi_disabled_tooltip'),
+        })
+
+      const actions = [
+        autoBiBtn,
         h(NButton, {
           size: 'small',
           onClick: () => handlePreview(row),

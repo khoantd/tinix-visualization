@@ -76,6 +76,33 @@ db.exec(`
     allowed_origins TEXT DEFAULT '[]',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS agent_apps (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    api_key_hash TEXT NOT NULL UNIQUE,
+    scopes TEXT NOT NULL DEFAULT '["catalog:read","data:read"]',
+    allowed_resource_ids TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS agent_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_id TEXT,
+    principal TEXT,
+    tool_or_route TEXT,
+    resource_ids TEXT,
+    row_count INTEGER,
+    status TEXT,
+    latency_ms INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS agent_idempotency_keys (
+    key TEXT PRIMARY KEY,
+    response TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
 `);
 
 // Migration: Thêm cột bi_config nếu chưa có
